@@ -1,0 +1,18 @@
+collections:
+  live: $live
+
+# Settings for each collection
+use_js_obj_proxy: true
+
+# Memento support, enable
+enable_memento: false
+
+proxy:
+  enable_banner: true
+  enable_wombat: true
+  enable_content_rewrite: true
+  enable_auto_fetch: true
+  coll: capture
+  recording: true
+
+

@@ -1,0 +1,12 @@
+{
+  "name": "embedserver",
+  "version": "1.0.0",
+  "main": "embed.js",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.17.1",
+    "fetch": "^1.1.0",
+    "node-fetch": "^2.6.0",
+    "puppeteer": "^2.0.0"
+  }
+}

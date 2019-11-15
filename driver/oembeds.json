@@ -1,0 +1,15 @@
+{"oembeds": [
+{
+  "rx": "https?:\/\/twitter.com",
+  "oe": "https://publish.twitter.com/oembed"
+},
+{
+  "rx": "https?:\/\/(www\.)?instagram[.]com",
+  "oe": "https://api.instagram.com/oembed"
+},
+{
+  "rx": "https?:\/\/(www\.)?youtube[.]com\/watch",
+  "oe": "http://www.youtube.com/oembed"
+}
+]}
+
