@@ -1,5 +1,5 @@
 from app import application
-from flask import Blueprint, jsonify, Response, send_from_directory
+from flask import Blueprint, jsonify, Response, send_from_directory, request
 import requests
 
 
@@ -10,10 +10,13 @@ def init_embeds_routes(flask_app, app):
         #user_params = {'url': url, 'timestamp': ''}
         user_params = {'url': 'about:blank'}
         image_name = 'chrome:76'
-        flock = 'embed_browser'
-        request = app.do_request(image_name, user_params=user_params, flock=flock)
-        reqid = request['reqid']
-        url = 'http://embedserver:3000/embed/' + url
+        flock = 'embed_browser_head'
+        resp = app.do_request(image_name, user_params=user_params, flock=flock)
+        reqid = resp['reqid']
+
+        if request.query_string:
+            url += '?' + request.query_string.decode('utf-8')
+
         res = app.get_pool(reqid=reqid).start(reqid, environ={'CAPTURE_URL': url})
         #return app.get_pool(reqid=reqid).start(reqid, environ=json_data.get('environ'))
         return jsonify({'id': reqid})

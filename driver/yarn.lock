@@ -366,17 +366,17 @@ methods@~1.1.2:
   resolved "https://registry.yarnpkg.com/methods/-/methods-1.1.2.tgz#5529a4d67654134edcc5266656835b0f851afcee"
   integrity sha1-VSmk1nZUE07cxSZmVoNbD4Ua/O4=
 
-mime-db@1.40.0:
-  version "1.40.0"
-  resolved "https://registry.yarnpkg.com/mime-db/-/mime-db-1.40.0.tgz#a65057e998db090f732a68f6c276d387d4126c32"
-  integrity sha512-jYdeOMPy9vnxEqFRRo6ZvTZ8d9oPb+k18PKoYNYUe2stVEBPPwsln/qWzdbmaIvnhZ9v2P+CuecK+fpUfsV2mA==
+mime-db@1.42.0:
+  version "1.42.0"
+  resolved "https://registry.yarnpkg.com/mime-db/-/mime-db-1.42.0.tgz#3e252907b4c7adb906597b4b65636272cf9e7bac"
+  integrity sha512-UbfJCR4UAVRNgMpfImz05smAXK7+c+ZntjaA26ANtkXLlOe947Aag5zdIcKQULAiF9Cq4WxBi9jUs5zkA84bYQ==
 
 mime-types@~2.1.24:
-  version "2.1.24"
-  resolved "https://registry.yarnpkg.com/mime-types/-/mime-types-2.1.24.tgz#b6f8d0b3e951efb77dedeca194cff6d16f676f81"
-  integrity sha512-WaFHS3MCl5fapm3oLxU4eYDw77IQM2ACcxQ9RIxfaC3ooc6PFuBMGZZsYpvoXS5D5QTWPieo1jjLdAm3TBP3cQ==
+  version "2.1.25"
+  resolved "https://registry.yarnpkg.com/mime-types/-/mime-types-2.1.25.tgz#39772d46621f93e2a80a856c53b86a62156a6437"
+  integrity sha512-5KhStqB5xpTAeGqKBAMgwaYMnQik7teQN4IAzC7npDv6kzeU6prfkR67bc87J1kWMPGkoaZSq1npmexMgkmEVg==
   dependencies:
-    mime-db "1.40.0"
+    mime-db "1.42.0"
 
 mime@1.6.0:
   version "1.6.0"
@@ -494,10 +494,10 @@ psl@^1.1.7:
   resolved "https://registry.yarnpkg.com/psl/-/psl-1.4.0.tgz#5dd26156cdb69fa1fdb8ab1991667d3f80ced7c2"
   integrity sha512-HZzqCGPecFLyoRj5HLfuDSKYTJkAfB5thKBIkRHtGjWwY7p1dAyveIbXIq4tO0KYfDF2tHqPUgY9SDnGm00uFw==
 
-puppeteer@^2.0.0:
+puppeteer-core@^2.0.0:
   version "2.0.0"
-  resolved "https://registry.yarnpkg.com/puppeteer/-/puppeteer-2.0.0.tgz#0612992e29ec418e0a62c8bebe61af1a64d7ec01"
-  integrity sha512-t3MmTWzQxPRP71teU6l0jX47PHXlc4Z52sQv4LJQSZLq1ttkKS2yGM3gaI57uQwZkNaoGd0+HPPMELZkcyhlqA==
+  resolved "https://registry.yarnpkg.com/puppeteer-core/-/puppeteer-core-2.0.0.tgz#2c3b122dec539ff01e6dfc29ee3e6f3a6280330d"
+  integrity sha512-xgg8hLm7VIiwoYRZtgXNy0gf9IKCA/WyT5Rm5RqkDc7mm4bJMeESmzP+YWyl+X/c1CSOuCy4WWnnC+9T+DKgCQ==
   dependencies:
     debug "^4.1.0"
     extract-zip "^1.6.6"

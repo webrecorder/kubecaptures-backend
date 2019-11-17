@@ -7,11 +7,12 @@ use_js_obj_proxy: true
 # Memento support, enable
 enable_memento: false
 
+enable_auto_fetch: true
+
 proxy:
   enable_banner: true
   enable_wombat: true
   enable_content_rewrite: true
-  enable_auto_fetch: true
   coll: capture
   recording: true
 
