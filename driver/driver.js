@@ -26,7 +26,13 @@ const oembedMap = [
   "rx": /https?:\/\/(www\.)?youtube[.]com\/watch/,
   "oe": 'http://www.youtube.com/oembed',
   "name": "youtube"
+},
+
+{  "rx": /https?:\/\/(www\.)?facebook[.]com/,
+   "oe": 'https://www.facebook.com/plugins/post/oembed.json/',
+   "name": "facebook"
 }
+
 ];
 
 const ARCHIVE_DIR = '/webarchive/collections/capture/archive/';
@@ -52,7 +58,7 @@ async function getOembed(url) {
   let res = await fetch(rule.oe + "?" + querystring.stringify({"url": url}));
   res = await res.json();
 
-  return res.html;
+  return res;
 }
 
 
@@ -81,6 +87,10 @@ app.get('/download', async(req, res) => {
   res.send('Not Found');
 });
 
+app.get('/screenshot', (req, res) => {
+  res.sendFile('/tmp/screenshot.png');
+});
+
 
 app.get('/done', (req, res) => {
   res.json({'done': done});
@@ -89,7 +99,8 @@ app.get('/done', (req, res) => {
 
 app.get(/embed\/(.*)/, async (req, res) => {
   const url = req.originalUrl.slice('/embed/'.length);
-  const content = await getOembed(url);
+  const oembed = await getOembed(url);
+  const content = oembed.html;
 
   res.set('Content-Type', 'text/html');
 
@@ -106,8 +117,6 @@ async function runDriver() {
   const url = process.env.CAPTURE_URL;
   const embedHost = process.env.EMBED_HOST || 'localhost';
 
-  
-
   if (!url) {
     return;
   }
@@ -118,7 +127,10 @@ async function runDriver() {
 
   while (!browser) {
     try {
-      browser = await puppeteer.connect({'browserURL': `http://${hostname}:9222`, 'defaultViewport': null});
+      const oembed = await getOembed(url);
+      //const viewport = {'width': oembed.width || 600, 'height': 600};
+      const viewport = null;
+      browser = await puppeteer.connect({'browserURL': `http://${hostname}:9222`, 'defaultViewport': viewport});
     } catch (e) {
       console.log('Waiting for browser...');
       await sleep(500);
@@ -134,9 +146,11 @@ async function runDriver() {
 
   await page.goto(`http://${embedHost}:3000/embed/` + url, {'waitUntil': 'networkidle0'});
 
-  await runBehavior(page, url);
+  await sleep(1000);
 
-  //await sleep(500);
+  await page.screenshot({'path': '/tmp/screenshot.png', fullPage: true, omitBackground: true});
+
+  await runBehavior(page, url);
 
   const filename = await getWarcFile();
 
@@ -171,7 +185,7 @@ async function runBehavior(page, url) {
   console.log(`to wait: ${toWait}`);
 
   if (toWait) {
-    await waitForNet(page, 2000);
+    await waitForNet(page, 5000);
   }
 
   return true;
@@ -196,6 +210,7 @@ async function waitForNet(page, idle) {
 
   function restartTimer() {
     if (tid) { clearTimeout(tid); }
+    //console.log(networkManager._requestIdToRequest.size);
     tid = setTimeout(() => { 
       resolve();
       clearTimeout(tid);
@@ -231,27 +246,47 @@ async function runTweet(page) {
 }
 
 async function runIG(page) {
-  if (!await waitFor(3000, () => { console.log(page.frames().length); return page.frames().length > 1 })) {
+  if (!await waitFor(3000, () => { return page.frames().length > 1 })) {
     return false;
   }
 
   const frame = page.frames()[1];
 
-  const videos = await frame.$$('video');
+  const liList = await frame.$$('ul > li', {timeout: 500});
 
-  if (!videos || !videos.length) {
-    return false;
-  }
+  if (liList && liList.length) {
+    let first = true;
 
-  for (let video of videos) {
-    try {
-      await video.click();
-    } catch (e) {
-      console.log(e);
+    for (let child of liList) {
+      if (!first) {
+        await frame.click("div.coreSpriteRightChevron", {timeout: 500});
+        await sleep(1000);
+      }
+      first = false;
+
+      const video = await child.$('video');
+      if (video) {
+        await video.click();
+        await sleep(1000);
+      }
     }
-  }
 
-  return true;
+    return false;
+
+  } else {
+    const videos = await frame.$$('video');
+
+    for (let video of videos) {
+      try {
+        await video.click();
+        await sleep(1000);
+      } catch (e) {
+        console.log(e);
+      }
+    }
+
+    return true;
+  }
 }
 
 

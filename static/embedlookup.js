@@ -17,6 +17,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   initTemplates();
 });
 
+
+function resizeIframe(obj) {
+  setTimeout(() => {
+    obj.style.height = Math.max(100, obj.contentDocument.body.scrollHeight) + 'px';
+  }, 500);
+}
+
+
 async function initTemplates(skipExisting = true) {
     const templates = document.querySelectorAll("template[data-archive-name][data-archive-file]");
 
@@ -25,12 +33,15 @@ async function initTemplates(skipExisting = true) {
         if (event.data.msg_type === "collAdded") {
           const name = event.data.name;
 
+          // replay iframe
           const iframe = document.querySelector(`iframe[data-archive="${name}"]`);
           if (!iframe) {
             return;
           }
+
           const url = iframe.getAttribute("data-url");
           const replayOrigin = iframe.parentElement.parentElement.getAttribute("data-replay-origin") || window.location.origin;
+
           iframe.addEventListener("load", () => {
             numLoading -= 1;
             if (loadQ.length) {
@@ -38,6 +49,13 @@ async function initTemplates(skipExisting = true) {
             }
           }, {"once": true});
           iframe.src = `${replayOrigin}/${replayPrefix}/${name}/mp_/${url}`;
+
+          // live iframe
+          const liveIframe = document.querySelector(`iframe[data-live="${name}"]`);
+
+          if (liveIframe && url.startsWith("http")) {
+            liveIframe.src = `${replayOrigin}/${replayPrefix}/${name}/id_/${url}`;
+          }
         }
       });
     }
@@ -67,13 +85,18 @@ async function initTemplates(skipExisting = true) {
       let name = null;
       let digest = template.getAttribute("data-digest");
 
+      const dataUrlAttr = template.getAttribute("data-url");
+
       if (digest) {
         dataUrl = "blob:" + digest;
         name = "em-" + digest.slice(0, 10);
       } else {
-        dataUrl = template.getAttribute("data-url");
+        dataUrl = dataUrlAttr;
         name = template.getAttribute("data-archive-name");
       }
+
+      const screenshotUrl = template.getAttribute("data-screenshot");
+
 
       const files = [{ "name": fileURL, "url": fileURL }];
 
@@ -85,9 +108,10 @@ async function initTemplates(skipExisting = true) {
       <p>Please try in a different browser.<br>
       (Using Shift+Refresh or Private Window also disables service workers in some browsers.)</p>`;
 
-      const insertHTML = `
+      let insertHTML = `
   <span class="emp-header">
-  <a href="#" class="emp-tab emp-archived">Archived</a>
+  <a href="#" class="emp-tab emp-archived">Web Archive</a>
+  <a href="#" class="emp-tab emp-screenshot">Screenshot</a>
   <a href="#" class="emp-tab emp-live">Live</a>
   <span class="emp-status"></span>
   </span>
@@ -97,7 +121,9 @@ async function initTemplates(skipExisting = true) {
   <div class="emp-container emp-live" style="display: none">
     <iframe data-live="${name}" style="width: ${width}; height: ${height}; border: 0px"></iframe>
   </div>
-      `;
+  <div class="emp-container emp-screenshot" style="display: none">
+    <img src="${screenshotUrl}"/>
+  </div>`;
 
       const div = document.createElement("div");
       div.innerHTML = insertHTML;
@@ -109,39 +135,66 @@ async function initTemplates(skipExisting = true) {
 
       const live = div.querySelector("div.emp-container.emp-live");
       const archived = div.querySelector("div.emp-container.emp-archived");
+      const screenshot = div.querySelector("div.emp-container.emp-screenshot");
 
       const liveIframe = live.querySelector("iframe");
-      const liveNode = liveIframe.contentDocument.importNode(template.content, true);
-      if (liveIframe.contentDocument.readyState === 'complete') {
-        liveIframe.contentDocument.body.appendChild(liveNode);
-      } else {
-        liveIframe.contentWindow.addEventListener("DOMContentLoaded", () => {
+
+      if (!dataUrlAttr) {
+        const liveNode = liveIframe.contentDocument.importNode(template.content, true);
+
+        if (liveIframe.contentDocument.readyState === 'complete') {
           liveIframe.contentDocument.body.appendChild(liveNode);
-        }, {"once": true});
+        } else {
+          liveIframe.contentWindow.addEventListener("DOMContentLoaded", () => {
+            liveIframe.contentDocument.body.appendChild(liveNode);
+          }, {"once": true});
+        }
       }
 
       const btnLive = div.querySelector("a.emp-tab.emp-live");
       const btnArchived = div.querySelector("a.emp-tab.emp-archived");
+      const btnScreenshot = div.querySelector("a.emp-tab.emp-screenshot");
 
       btnArchived.addEventListener("click", (event) => {
+        resizeIframe(iframe);
         live.style.display = "none";
         archived.style.display = "";
+        screenshot.style.display = "none";
         btnArchived.classList.add("emp-active");
         btnLive.classList.remove("emp-active");
+        btnScreenshot.classList.remove("emp-active");
         status.innerText = iframe.getAttribute("data-ts");
         event.preventDefault();
         return false;
       });
 
       btnLive.addEventListener("click", (event) => {
+        resizeIframe(liveIframe);
         live.style.display = "";
         archived.style.display = "none";
+        screenshot.style.display = "none";
         btnLive.classList.add("emp-active");
         btnArchived.classList.remove("emp-active");
+        btnScreenshot.classList.remove("emp-active");
         status.innerText = "Live Embed";
         event.preventDefault();
         return false;
       });
+
+      btnScreenshot.addEventListener("click", (event) => {
+        resizeIframe(liveIframe);
+        live.style.display = "none";
+        archived.style.display = "none";
+        screenshot.style.display = "";
+        btnScreenshot.classList.add("emp-active");
+        btnArchived.classList.remove("emp-active");
+        btnLive.classList.remove("emp-active");
+        status.innerText = "Screenshot";
+        event.preventDefault();
+        return false;
+      });
+
+
 
       if (!swAvail) {
         btnLive.click();

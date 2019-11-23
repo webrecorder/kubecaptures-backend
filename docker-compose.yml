@@ -2,7 +2,7 @@ version: '3.3'
 
 services:
     shepherd:
-        image: oldwebtoday/shepherd:1.1.0
+        build: ./
         command: python -u main.py
         environment:
             - BROWSER_NET=embeds_browsers

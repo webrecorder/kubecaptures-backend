@@ -5,24 +5,84 @@ window.addEventListener("load", () => {
     return false;
   });
 
+  let ws = null;
+
+  async function waitForArchiveWS(url) {
+    let pingEvent = null;
+    if (ws) {
+      ws.close();
+    }
+    ws = new WebSocket(window.location.origin.replace('http', 'ws') + '/api/capture');
+
+    let id = null;
+
+    let resolve, reject;
+    const pr = new Promise((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+
+    ws.addEventListener("open", (event) => {
+      ws.send(url);
+
+      pingEvent = setInterval(() => { ws.send('ping'); }, 3000);
+    });
+
+    ws.addEventListener("message", (event) => {
+      if (event.data.startsWith("id:")) {
+        id = event.data.slice("id:".length);
+      } else if (event.data === 'done') {
+        resolve(id);
+      } else if (event.data === 'error') {
+        reject(event.data);
+      }
+    });
+
+    ws.addEventListener("error", (event) => {
+      clearInterval(pingEvent);
+    });
+
+    ws.addEventListener("close", (event) => {
+      clearInterval(pingEvent);
+    });
+
+    return pr;
+  }
+
   async function startCapture() {
+    const startTime = new Date().getTime();
+    
+    const preview = document.querySelector("#archive-preview");
+
+    const dlLink = document.querySelector("#download-warc");
+
     const url = document.querySelector("#url").value;
+
+    if (!url) {
+      return;
+    }
+
+    preview.innerHTML = "";
+    dlLink.innerHTML = "";
 
     document.querySelector("#spinner-container").classList.remove("hidden");
 
-    const resp = await window.fetch("/api/capture/" + url);
-    const data = await resp.json();
+    let id = null;
 
-    console.log(data);
+    try {
+      id = await waitForArchiveWS(url);
+    } catch(e) {
+      console.warn(e);
+      return;
+    } finally {
+      document.querySelector("#spinner-container").classList.add("hidden");
+    }
 
-    const id = data.id;
+    const embedText = `<template data-archive-file="/api/download/${id}.warc" data-archive-name="embed" data-screenshot="/api/download/${id}.png" data-url="http://embedserver:3000/embed/${url}" data-width="800px" data-height="550px">Test</template>`;
 
-    await waitForArchive(id);
+    dlLink.innerHTML = `<p><a href="/api/download/${id}.warc">Download Archive</a></p><pre>${escape(embedText)}</pre>`;
 
-    document.querySelector("#spinner-container").classList.add("hidden");
-
-    const result = document.querySelector("#archive-result");
-    result.innerHTML = `<template data-archive-file="/api/download/${id}.warc" data-archive-name="embed" data-url="http://embedserver:3000/embed/${url}" data-width="800px" data-height="550px">Test</template>`;
+    preview.innerHTML = embedText;
 
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({
@@ -32,28 +92,8 @@ window.addEventListener("load", () => {
     }
 
     initTemplates(false);
-  }
 
-  async function waitForArchive(id) {
-    let resolve, reject;
-    const pr = new Promise((res, rej) => {
-      resolve = res;
-      reject = rej;
-    });
-
-    try {
-      while (true) {
-        const res = await window.fetch("/api/done/" + id);
-        const json = await res.json();
-        if (json.done) {
-          resolve(json.done);
-          break;
-        }
-        await sleep(1000);
-      }
-    } catch (e) {
-      reject(e);
-    }
+    console.log(`Elapsed: ${new Date().getTime() - startTime}`);
   }
 
   function sleep(ms) {

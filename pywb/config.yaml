@@ -1,10 +1,8 @@
 collections:
   live: $live
 
-# Settings for each collection
 use_js_obj_proxy: true
 
-# Memento support, enable
 enable_memento: false
 
 enable_auto_fetch: true
