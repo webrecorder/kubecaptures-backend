@@ -65,6 +65,7 @@ window.addEventListener("load", () => {
     preview.innerHTML = "";
     dlLink.innerHTML = "";
 
+    document.querySelector("#embedcode").classList.add("hidden");
     document.querySelector("#spinner-container").classList.remove("hidden");
 
     let id = null;
@@ -78,11 +79,7 @@ window.addEventListener("load", () => {
       document.querySelector("#spinner-container").classList.add("hidden");
     }
 
-    const embedText = `<template data-archive-file="/api/download/${id}.warc" data-archive-name="embed" data-screenshot="/api/download/${id}.png" data-url="http://embedserver:3000/embed/${url}" data-width="800px" data-height="550px">Test</template>`;
-
-    dlLink.innerHTML = `<p><a href="/api/download/${id}.warc">Download Archive</a></p><pre>${escape(embedText)}</pre>`;
-
-    preview.innerHTML = embedText;
+    dlLink.innerHTML = `<p><a href="/api/download/${id}.warc">Download Archive</a></p>`;
 
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({
@@ -91,7 +88,15 @@ window.addEventListener("load", () => {
       });
     }
 
-    initTemplates(false);
+    const embedText = `<archive-embed archive="/api/download/${id}.warc" coll="embed" url="http://embedserver/e/${url}" live="true" screenshot="true" width="800px" height="550px" autoSize></archive-embed>`;
+
+    preview.innerHTML = embedText;
+
+    const code = document.querySelector("code");
+    code.innerText = embedText;
+
+    document.querySelector("#embedcode").classList.remove("hidden");
+
 
     console.log(`Elapsed: ${new Date().getTime() - startTime}`);
   }

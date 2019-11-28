@@ -8,7 +8,6 @@ const puppeteer = require('puppeteer-core');
 const dns = require('dns').promises;
 
 
-
 const oembedMap = [
 {
   "rx": /https?:\/\/twitter.com/,
@@ -37,7 +36,11 @@ const oembedMap = [
 
 const ARCHIVE_DIR = '/webarchive/collections/capture/archive/';
 
+const embedPort = Number(process.env.EMBED_PORT || 3000);
+
 let done = false;
+
+let oembedCache = {};
 
 function findOembedRule(url) {
   for (let r of oembedMap) {
@@ -48,6 +51,10 @@ function findOembedRule(url) {
   return null;
 }
 
+function ruleToUrl(rule, url) {
+  return rule.oe + "?" + querystring.stringify({"url": url});
+}
+
 async function getOembed(url) {
   const rule = findOembedRule(url);
 
@@ -55,8 +62,14 @@ async function getOembed(url) {
     return null;
   }
 
-  let res = await fetch(rule.oe + "?" + querystring.stringify({"url": url}));
+  if (oembedCache[url]) {
+    return oembedCache[url];
+  }
+
+  let res = await fetch(ruleToUrl(rule, url));
   res = await res.json();
+
+  oembedCache[url] = res;
 
   return res;
 }
@@ -96,9 +109,20 @@ app.get('/done', (req, res) => {
   res.json({'done': done});
 });
 
+app.get(/info\/(.*)/, async (req, res) => {
+  const url = req.params[0];
+  const rule = findOembedRule(url);
 
-app.get(/embed\/(.*)/, async (req, res) => {
-  const url = req.originalUrl.slice('/embed/'.length);
+  if (!rule) {
+    res.sendStatus(404);
+    return;
+  }
+
+  res.redirect(307, ruleToUrl(rule, url));
+});
+
+app.get(/e\/(.*)/, async (req, res) => {
+  const url = req.params[0];
   const oembed = await getOembed(url);
   const content = oembed.html;
 
@@ -140,15 +164,25 @@ async function runDriver() {
   const pages = await browser.pages();
   const page = pages[0];
 
-  if (page.url() !== 'about:blank') {
-    await page.goto('about:blank');
+  const embedPrefix = (embedPort === 80 ? `http://${embedHost}` : `http://${embedHost}:${embedPort}`);
+
+  try {
+    await page.goto(`${embedPrefix}/info/${url}`);
+  } catch (e) {
+    //console.log(e);
   }
 
-  await page.goto(`http://${embedHost}:3000/embed/` + url, {'waitUntil': 'networkidle0'});
+  const embedUrl = `${embedPrefix}/e/${url}`;
 
-  await sleep(1000);
+  await page.goto(embedUrl, {'waitUntil': 'networkidle0'});
+
+  await sleep(100);
 
   await page.screenshot({'path': '/tmp/screenshot.png', fullPage: true, omitBackground: true});
+
+  await sleep(100);
+
+  await putScreenshot('http://pywb:8080/api/screenshot/capture', embedUrl, '/tmp/screenshot.png');
 
   await runBehavior(page, url);
 
@@ -158,6 +192,22 @@ async function runDriver() {
 
   done = true;
   console.log('done');
+}
+
+async function putScreenshot(putUrl, url, filename) {
+  try {
+    const buff = await fs.promises.readFile(filename);
+
+    console.log('size: ' + buff.length);
+
+    putUrl += "?" + querystring.stringify({"url": url});
+
+    let res = await fetch(putUrl, { method: 'PUT', body: buff, headers: { 'Content-Type': 'image/png' } });
+    res = await res.json();
+    console.log(res);
+  } catch (e)  {
+    console.log(e);
+  }
 }
 
 
@@ -334,6 +384,6 @@ async function waitFor(ms, predicate) {
 
 runDriver();
 
-app.listen(3000)
+app.listen(embedPort);
 
 

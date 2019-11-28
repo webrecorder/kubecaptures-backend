@@ -4,6 +4,8 @@ import requests
 from geventwebsocket.handler import WebSocketHandler
 import time
 
+EMBED_SERVER = 'http://embedserver-{0}/{1}'
+
 
 def init_embeds_routes(flask_app, app):
     @app.route('/api/capture/<path:url>')
@@ -58,7 +60,7 @@ def init_embeds_routes(flask_app, app):
                     continue
 
                 try:
-                    r = requests.get('http://embedserver-{0}:3000/done'.format(reqid))
+                    r = requests.get(EMBED_SERVER.format(reqid, 'done'))
                     if r.json().get('done'):
                         ws.send('done')
                         done = True
@@ -80,7 +82,7 @@ def init_embeds_routes(flask_app, app):
     @app.route('/api/done/<reqid>')
     def is_ready(reqid):
         try:
-            r = requests.get('http://embedserver-{0}:3000/done'.format(reqid))
+            r = requests.get(EMBED_SERVER.format(reqid, 'done'))
             print(r.text)
             return jsonify(r.json())
         except Exception as e:
@@ -89,7 +91,7 @@ def init_embeds_routes(flask_app, app):
     @app.route('/api/download/<reqid>.warc')
     def download_warc(reqid):
         try:
-            r = requests.get('http://embedserver-{0}:3000/download'.format(reqid), stream=True)
+            r = requests.get(EMBED_SERVER.format(reqid, 'download'), stream=True)
             if r.status_code == 404:
                 return jsonify({'error': 'not_yet_ready'})
 
@@ -100,7 +102,7 @@ def init_embeds_routes(flask_app, app):
     @app.route('/api/download/<reqid>.png')
     def download_png(reqid):
         try:
-            r = requests.get('http://embedserver-{0}:3000/screenshot'.format(reqid), stream=True)
+            r = requests.get(EMBED_SERVER.format(reqid, 'screenshot'), stream=True)
             if r.status_code == 404:
                 return jsonify({'error': 'not_yet_ready'})
 

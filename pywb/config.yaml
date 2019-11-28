@@ -7,6 +7,8 @@ enable_memento: false
 
 enable_auto_fetch: true
 
+recorder: live
+
 proxy:
   enable_banner: true
   enable_wombat: true

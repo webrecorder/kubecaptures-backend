@@ -27,3 +27,5 @@ containers:
     environment:
       BROWSER_HOST: browser
       EMBED_HOST: embedserver
+      EMBED_PORT: 80
+

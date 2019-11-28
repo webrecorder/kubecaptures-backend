@@ -4,17 +4,25 @@
   <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.1/build/pure-min.css" integrity="sha384-oAOxQR6DkCoMliIh8yFnu25d7Eq/PHS21PClpwjOTeU2jRSq11vu66rf90/cZr47" crossorigin="anonymous">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="/static/embed.js"></script>
-  <script src="/static/embedlookup.js"></script>
+  <script src="/static/sw.js"></script>
+  <!--<script src="/static/embedlookup.js"></script>-->
   <style>
   .header {
     font-family: "Raleway", "Helvetica Neue", Helvetica, Arial, sans-serif;
     text-align: center;
-    padding: 1em;
+    padding: 0em 1em;
   }
   .main {
-    padding: 2em;
+    padding: 0em 1em;
   }
-
+  #embedcode {
+    background-color: lightgray;
+    max-width: 760px;
+    padding: 20px;
+    display: block;
+    margin-bottom: 1em;
+    font-size: 14px;
+  }
   #spinner-container {
     margin-left: 25px;
   }
@@ -52,7 +60,7 @@
 </head>
 <body>
     <div class="header"><h1>Archive Embed</h1></div>
-    <div class="pure-g main">
+    <div class="main">
     <div class="pure-u-1-1">
      <form class="pure-form">
       <fieldset>
@@ -64,6 +72,9 @@
      </form>
     </div>
     <div id="download-warc" class="pure-u-1-1">
+    </div>
+    <div id="embedcode" class="hidden">
+    <code></code>
     </div>
     <div class="pure-u-1-1">
     <div id="archive-preview"></div>

@@ -1,5 +1,10 @@
 FROM webrecorder/pywb:develop
 
-COPY config.yaml /webarchive
+WORKDIR /app
 
+COPY config.yaml /app/
+
+COPY captureapp.py /app/
+
+COPY uwsgi.ini /uwsgi/
 
