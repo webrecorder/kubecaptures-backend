@@ -8,7 +8,10 @@ from pywb.apps.cli import ReplayCli
 from pywb.apps.wbrequestresponse import WbResponse
 from warcio.timeutils import timestamp_now, timestamp_to_iso_date
 from werkzeug.routing import Rule
+import tempfile
 
+def create_buff_func(params, name):
+    return TempWriteBuffer(application, params.get('url', ''))
 
 # ============================================================================
 class CaptureApp(FrontEndApp):
@@ -17,14 +20,20 @@ class CaptureApp(FrontEndApp):
         self.custom_record_path = (
             self.recorder_path + '&put_record={rec_type}&url={url}'
         )
+        self.pending_count = 0
+        self.pending_size = 0
+
+    def init_recorder(self, *args, **kwargs):
+        super(CaptureApp, self).init_recorder(*args, **kwargs)
+        self.recorder.create_buff_func = create_buff_func
 
     def _init_routes(self):
         super(CaptureApp, self)._init_routes()
-        self.url_map.add(
-            Rule(
-                '/api/screenshot/<coll>', endpoint=self.put_screenshot, methods=['PUT']
-            )
-        )
+        self.url_map.add(Rule('/api/screenshot/<coll>', endpoint=self.put_screenshot, methods=['PUT']))
+        self.url_map.add(Rule('/api/pending', endpoint=self.get_pending, methods=['GET']))
+
+    def get_pending(self, environ):
+        return WbResponse.json_response({'count': self.pending_count, 'size': self.pending_size})
 
     def put_screenshot(self, environ, coll):
         chunks = []
@@ -69,11 +78,37 @@ class CaptureApp(FrontEndApp):
 
 application = CaptureApp()
 
+
+
 # ============================================================================
-class Cli(ReplayCli):
-    def load(self):
-        super(ReplayCli, self).load()
-        return CaptureApp(custom_config=self.extra_config)
+class TempWriteBuffer(tempfile.SpooledTemporaryFile):
+    def __init__(self, app, url):
+        super(TempWriteBuffer, self).__init__(max_size=512*1024)
+
+        self.app = app
+        self.app.pending_count += 1
+
+        self.url = url
+
+        print('{1} {2} - Start Capture for {0}'.format(self.url, self.app.pending_count, self.app.pending_size))
+        self._wsize = 0
+
+    def write(self, buff):
+        super(TempWriteBuffer, self).write(buff)
+        length = len(buff)
+        self._wsize += length
+
+        self.app.pending_size += length
+
+    def close(self):
+        try:
+            super(TempWriteBuffer, self).close()
+        except:
+            traceback.print_exc()
+
+        self.app.pending_count -= 1
+        print('{1} {2} - End Capture for {0}'.format(self.url, self.app.pending_count, self.app.pending_size))
+        self.app.pending_size -= self._wsize
 
 
 # ============================================================================

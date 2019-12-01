@@ -31,8 +31,13 @@ window.addEventListener("load", () => {
     ws.addEventListener("message", (event) => {
       if (event.data.startsWith("id:")) {
         id = event.data.slice("id:".length);
-      } else if (event.data === 'done') {
-        resolve(id);
+      } else if (event.data.startsWith('status')) {
+        let results = JSON.parse(event.data.slice('status'.length));
+        results.id = id;
+        console.log(results);
+        if (results.done) {
+          resolve(results);
+        }
       } else if (event.data === 'error') {
         reject(event.data);
       }
@@ -68,16 +73,19 @@ window.addEventListener("load", () => {
     document.querySelector("#embedcode").classList.add("hidden");
     document.querySelector("#spinner-container").classList.remove("hidden");
 
-    let id = null;
+    let result = null;
 
     try {
-      id = await waitForArchiveWS(url);
+      result = await waitForArchiveWS(url);
     } catch(e) {
       console.warn(e);
       return;
     } finally {
       document.querySelector("#spinner-container").classList.add("hidden");
     }
+
+    const id = result.id;
+    const width = result.width ? result.width + 50 : 800;
 
     dlLink.innerHTML = `<p><a href="/api/download/${id}.warc">Download Archive</a></p>`;
 
@@ -88,7 +96,7 @@ window.addEventListener("load", () => {
       });
     }
 
-    const embedText = `<archive-embed archive="/api/download/${id}.warc" coll="embed" url="http://embedserver/e/${url}" live="true" screenshot="true" width="800px" height="550px" autoSize></archive-embed>`;
+    const embedText = `<archive-embed archive="/api/download/${id}.warc" coll="embed" url="http://embedserver/e/${url}" screenshot="true" width="${width}px" height="550px" autoSize></archive-embed>`;
 
     preview.innerHTML = embedText;
 

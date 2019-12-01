@@ -7,7 +7,7 @@ COPY yarn.lock /app/
 
 RUN yarn install
 
-COPY driver.js /app/
+COPY *.js /app/
 COPY run.sh /app/
 
 CMD /app/run.sh

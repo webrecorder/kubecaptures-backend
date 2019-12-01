@@ -26,6 +26,7 @@ containers:
     external_network: '${BROWSER_NET}'
     environment:
       BROWSER_HOST: browser
+      PROXY_HOST: pywb
       EMBED_HOST: embedserver
       EMBED_PORT: 80
 

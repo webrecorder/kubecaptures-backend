@@ -8,22 +8,6 @@ EMBED_SERVER = 'http://embedserver-{0}/{1}'
 
 
 def init_embeds_routes(flask_app, app):
-    @app.route('/api/capture/<path:url>')
-    def start_embed(url):
-        #user_params = {'url': url, 'timestamp': ''}
-        user_params = {'url': 'about:blank'}
-        image_name = 'chrome:76'
-        flock = 'embed_browser'
-        resp = app.do_request(image_name, user_params=user_params, flock=flock)
-        reqid = resp['reqid']
-
-        if request.query_string:
-            url += '?' + request.query_string.decode('utf-8')
-
-        res = app.get_pool(reqid=reqid).start(reqid, environ={'CAPTURE_URL': url})
-        #return app.get_pool(reqid=reqid).start(reqid, environ=json_data.get('environ'))
-        return jsonify({'id': reqid})
-
     @app.route('/api/capture')
     def get_ws():
         ws = request.environ["wsgi.websocket"]
@@ -36,9 +20,6 @@ def init_embeds_routes(flask_app, app):
         resp = app.do_request(image_name, user_params=user_params, flock=flock)
         reqid = resp['reqid']
 
-        if request.query_string:
-            url += '?' + request.query_string.decode('utf-8')
-
         print('WS URL: ' + url)
 
         res = app.get_pool(reqid=reqid).start(reqid, environ={'CAPTURE_URL': url})
@@ -49,10 +30,8 @@ def init_embeds_routes(flask_app, app):
 
         try:
             while True:
-                print('Wait for ping')
                 res = ws.receive()
                 assert res == 'ping', res
-                print('Got ping')
 
                 time.sleep(3.0)
 
@@ -60,9 +39,10 @@ def init_embeds_routes(flask_app, app):
                     continue
 
                 try:
-                    r = requests.get(EMBED_SERVER.format(reqid, 'done'))
-                    if r.json().get('done'):
-                        ws.send('done')
+                    r = requests.get(EMBED_SERVER.format(reqid, 'status'))
+                    ws.send('status ' + r.text)
+                    res = r.json()
+                    if res.get('done'):
                         done = True
 
                 except Exception as e:
@@ -79,15 +59,6 @@ def init_embeds_routes(flask_app, app):
             return ''
 
 
-    @app.route('/api/done/<reqid>')
-    def is_ready(reqid):
-        try:
-            r = requests.get(EMBED_SERVER.format(reqid, 'done'))
-            print(r.text)
-            return jsonify(r.json())
-        except Exception as e:
-            return jsonify({'error': str(e)})
-
     @app.route('/api/download/<reqid>.warc')
     def download_warc(reqid):
         try:
@@ -96,17 +67,6 @@ def init_embeds_routes(flask_app, app):
                 return jsonify({'error': 'not_yet_ready'})
 
             return Response(r.iter_content(1024*32), mimetype='application/octet-stream')
-        except Exception as e:
-            return jsonify({'error': str(e)})
-
-    @app.route('/api/download/<reqid>.png')
-    def download_png(reqid):
-        try:
-            r = requests.get(EMBED_SERVER.format(reqid, 'screenshot'), stream=True)
-            if r.status_code == 404:
-                return jsonify({'error': 'not_yet_ready'})
-
-            return Response(r.iter_content(1024*32), mimetype='image/png')
         except Exception as e:
             return jsonify({'error': str(e)})
 

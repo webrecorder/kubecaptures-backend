@@ -7,7 +7,9 @@ enable_memento: false
 
 enable_auto_fetch: true
 
-recorder: live
+recorder:
+  source_coll: live
+  filename_template: archive.warc.gz
 
 proxy:
   enable_banner: true

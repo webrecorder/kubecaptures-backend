@@ -1,3 +1,7 @@
+"use strict";
+
+const utils = require('./utils.js');
+
 const express = require('express');
 const fetch = require('node-fetch');
 const app = express();
@@ -6,6 +10,7 @@ const fs = require('fs');
 
 const puppeteer = require('puppeteer-core');
 const dns = require('dns').promises;
+
 
 
 const oembedMap = [
@@ -34,11 +39,16 @@ const oembedMap = [
 
 ];
 
-const ARCHIVE_DIR = '/webarchive/collections/capture/archive/';
+const ARCHIVE_FILE = '/webarchive/collections/capture/archive/archive.warc.gz';
 
 const embedPort = Number(process.env.EMBED_PORT || 3000);
 
 let done = false;
+let embedWidth = null;
+let embedType = null;
+
+let currentSize = 0;
+let pendingSize = 0;
 
 let oembedCache = {};
 
@@ -70,29 +80,19 @@ async function getOembed(url) {
   res = await res.json();
 
   oembedCache[url] = res;
+  embedWidth = res.width;
+  embedType = rule.name;
 
   return res;
 }
 
-
-async function getWarcFile() {
-  try {
-    const files = await fs.promises.readdir(ARCHIVE_DIR);
-    if (files.length) {
-      return ARCHIVE_DIR + files[0];
-    }
-  } catch (e) {}
-
-  return null;
-}
- 
-
 app.get('/download', async(req, res) => {
   if (done) {
-    const file = await getWarcFile();
-    if (file) {
-      res.sendFile(file);
+    try {
+      res.sendFile(ARCHIVE_FILE);
       return;
+    } catch (e) {
+      console.log(e);
     }
   }
 
@@ -105,12 +105,12 @@ app.get('/screenshot', (req, res) => {
 });
 
 
-app.get('/done', (req, res) => {
-  res.json({'done': done});
+app.get('/status', (req, res) => {
+  res.json({'done': done, 'width': embedWidth, 'type': embedType, 'size': currentSize + pendingSize});
 });
 
 app.get(/info\/(.*)/, async (req, res) => {
-  const url = req.params[0];
+  const url = req.originalUrl.slice('/info/'.length);
   const rule = findOembedRule(url);
 
   if (!rule) {
@@ -122,7 +122,7 @@ app.get(/info\/(.*)/, async (req, res) => {
 });
 
 app.get(/e\/(.*)/, async (req, res) => {
-  const url = req.params[0];
+  const url = req.originalUrl.slice('/e/'.length);
   const oembed = await getOembed(url);
   const content = oembed.html;
 
@@ -140,6 +140,7 @@ async function runDriver() {
   const browserHost = process.env.BROWSER_HOST || 'localhost';
   const url = process.env.CAPTURE_URL;
   const embedHost = process.env.EMBED_HOST || 'localhost';
+  const proxyHost = process.env.PROXY_HOST;
 
   if (!url) {
     return;
@@ -157,12 +158,13 @@ async function runDriver() {
       browser = await puppeteer.connect({'browserURL': `http://${hostname}:9222`, 'defaultViewport': viewport});
     } catch (e) {
       console.log('Waiting for browser...');
-      await sleep(500);
+      await utils.sleep(500);
     }
   }
 
   const pages = await browser.pages();
-  const page = pages[0];
+
+  const page = pages.length ? pages[0] : await browser.newPage();
 
   const embedPrefix = (embedPort === 80 ? `http://${embedHost}` : `http://${embedHost}:${embedPort}`);
 
@@ -176,29 +178,75 @@ async function runDriver() {
 
   await page.goto(embedUrl, {'waitUntil': 'networkidle0'});
 
-  await sleep(100);
+  startSizeTrack();
+
+  await utils.sleep(100);
+  //const computeWidth = await page.evaluate(() => document.querySelector("body").firstElementChild.scrollWidth);
 
   await page.screenshot({'path': '/tmp/screenshot.png', fullPage: true, omitBackground: true});
 
-  await sleep(100);
+  await utils.sleep(100);
 
-  await putScreenshot('http://pywb:8080/api/screenshot/capture', embedUrl, '/tmp/screenshot.png');
+  if (proxyHost) {
+    await putScreenshot(`http://${proxyHost}:8080/api/screenshot/capture`, embedUrl, '/tmp/screenshot.png');
+  }
 
   await runBehavior(page, url);
 
-  const filename = await getWarcFile();
-
-  await waitFileDone(filename);
+  if (proxyHost) {
+    await waitFileDone(`http://${proxyHost}:8080/api/pending`);
+  }
 
   done = true;
   console.log('done');
+}
+
+async function startSizeTrack() {
+  while (!done) {
+    try {
+      const { size } = await fs.promises.stat(ARCHIVE_FILE);
+
+      await utils.sleep(500);
+
+      currentSize = size;
+    } catch (e) {
+      console.log(e);
+      await utils.sleep(500);
+    }
+  }
+}
+
+async function waitFileDone(pendingCheckUrl) {
+  while (true) {
+    const oldCurrentSize = currentSize;
+
+    let res = await fetch(pendingCheckUrl);
+    res = await res.json();
+
+    const oldPending = res.count;
+    pendingSize = res.size;
+
+    await utils.sleep(1000);
+
+    res = await fetch(pendingCheckUrl);
+    res = await res.json();
+
+    const newPending = res.count;
+    const newPendingSize = res.size;
+
+    if (oldPending <= 0 && newPending <= 0 && newPendingSize === pendingSize && oldCurrentSize === currentSize) {
+      return true;
+    }
+
+    //console.log(newPendingSize);
+  }
 }
 
 async function putScreenshot(putUrl, url, filename) {
   try {
     const buff = await fs.promises.readFile(filename);
 
-    console.log('size: ' + buff.length);
+    //console.log('size: ' + buff.length);
 
     putUrl += "?" + querystring.stringify({"url": url});
 
@@ -229,13 +277,17 @@ async function runBehavior(page, url) {
 
     case "instagram":
       toWait = await runIG(page);
-      break
+      break;
+
+    case "youtube":
+      toWait = await runYT(page);
+      break;
   }
 
   console.log(`to wait: ${toWait}`);
 
   if (toWait) {
-    await waitForNet(page, 5000);
+    await utils.waitForNet(page, 5000);
   }
 
   return true;
@@ -244,63 +296,21 @@ async function runBehavior(page, url) {
    
 
 
-async function waitForNet(page, idle) {
-  //const client = await page.target().createCDPSession();
-
-  const client = page._client;
-  let resolve = null;
-  const p = new Promise((r) => resolve = r);
-
-  let tid = null;
-
-  client.send('Network.enable');
-  client.on('Network.loadingFinished', restartTimer);
-
-  const networkManager = page._frameManager.networkManager();
-
-  function restartTimer() {
-    if (tid) { clearTimeout(tid); }
-    //console.log(networkManager._requestIdToRequest.size);
-    tid = setTimeout(() => { 
-      resolve();
-      clearTimeout(tid);
-    }, idle); 
-  };
-
-  restartTimer();
-  return p;
-}
 
 
-function clickShadowRoot(shadowTarget, target) {
-  const widget = document.querySelector(shadowTarget);
 
-  if (!widget || !widget.shadowRoot) {
-    return false;
-  }
-
-  const shadowObj = widget.shadowRoot.querySelector(target);
-
-  if (shadowObj) {
-    shadowObj.click();
-    return true;
-  }
-
-  return false;
-}
 
 async function runTweet(page) {
   const selector = 'div[data-scribe="element:play_button"]';
 
-  return await page.evaluate(clickShadowRoot, 'twitter-widget', selector);
+  return await page.evaluate(utils.clickShadowRoot, 'twitter-widget', selector);
 }
 
 async function runIG(page) {
-  if (!await waitFor(3000, () => { return page.frames().length > 1 })) {
+  const frame = await utils.waitForFrame(page, 1);
+  if (!frame) {
     return false;
   }
-
-  const frame = page.frames()[1];
 
   const liList = await frame.$$('ul > li', {timeout: 500});
 
@@ -309,15 +319,15 @@ async function runIG(page) {
 
     for (let child of liList) {
       if (!first) {
-        await frame.click("div.coreSpriteRightChevron", {timeout: 500});
-        await sleep(1000);
+        await utils.waitForClick(frame, "div.coreSpriteRightChevron", 500);
+        await utils.sleep(1000);
       }
       first = false;
 
       const video = await child.$('video');
       if (video) {
         await video.click();
-        await sleep(1000);
+        await utils.sleep(1000);
       }
     }
 
@@ -329,7 +339,7 @@ async function runIG(page) {
     for (let video of videos) {
       try {
         await video.click();
-        await sleep(1000);
+        await utils.sleep(1000);
       } catch (e) {
         console.log(e);
       }
@@ -339,47 +349,22 @@ async function runIG(page) {
   }
 }
 
-
-async function waitFileDone(filename) {
-  if (!filename) return;
-
-  while (true) {
-    const { size } = await fs.promises.stat(filename);
-
-    await sleep(500);
-
-    const stats = await fs.promises.stat(filename);
-
-    if (size === stats.size) {
-      return true;
-    }
-
-    await sleep(500);
+async function runYT(page) {
+  const frame = await utils.waitForFrame(page, 1);
+  if (!frame) {
+    console.log('no frame found?');
+    return false;
   }
-}
 
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function waitFor(ms, predicate) {
-  const startTime = new Date().getTime();
-
-  while (true) {
-    if (predicate()) {
-      return true;
-    }
-
-    await sleep(500);
-
-    if ((new Date().getTime() - startTime) >= ms) {
-      return false;
-    }
+  try {
+    await utils.waitForClick(frame, 'button[aria-label="Play"]', 10000);
+  } catch (e) {
+    console.log(e);
+    console.log('no play button!');
   }
+    
+  return true;
 }
-
-
 
 
 runDriver();
