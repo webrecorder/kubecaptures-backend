@@ -59,8 +59,8 @@ def init_embeds_routes(flask_app, app):
             return ''
 
 
-    @app.route('/api/download/<reqid>.warc')
-    def download_warc(reqid):
+    @app.route('/api/download/<reqid>/<name>.warc')
+    def download_warc(reqid, name):
         try:
             r = requests.get(EMBED_SERVER.format(reqid, 'download'), stream=True)
             if r.status_code == 404:

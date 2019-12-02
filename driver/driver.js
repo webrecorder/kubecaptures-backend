@@ -49,6 +49,7 @@ let embedType = null;
 
 let currentSize = 0;
 let pendingSize = 0;
+let statusText = "";
 
 let oembedCache = {};
 
@@ -106,7 +107,7 @@ app.get('/screenshot', (req, res) => {
 
 
 app.get('/status', (req, res) => {
-  res.json({'done': done, 'width': embedWidth, 'type': embedType, 'size': currentSize + pendingSize});
+  res.json({'done': done, 'status': statusText, 'width': embedWidth, 'type': embedType, 'size': currentSize + pendingSize});
 });
 
 app.get(/info\/(.*)/, async (req, res) => {
@@ -146,6 +147,8 @@ async function runDriver() {
     return;
   }
 
+  setStatus("Loading Browser...");
+
   const { address: hostname } = await dns.lookup(browserHost);
 
   let browser = null;
@@ -168,6 +171,8 @@ async function runDriver() {
 
   const embedPrefix = (embedPort === 80 ? `http://${embedHost}` : `http://${embedHost}:${embedPort}`);
 
+  setStatus("Getting Embed Info...");
+
   try {
     await page.goto(`${embedPrefix}/info/${url}`);
   } catch (e) {
@@ -176,12 +181,16 @@ async function runDriver() {
 
   const embedUrl = `${embedPrefix}/e/${url}`;
 
+  setStatus("Loading Embed...");
+
   await page.goto(embedUrl, {'waitUntil': 'networkidle0'});
 
   startSizeTrack();
 
   await utils.sleep(100);
   //const computeWidth = await page.evaluate(() => document.querySelector("body").firstElementChild.scrollWidth);
+
+  setStatus("Taking Screenshot...");
 
   await page.screenshot({'path': '/tmp/screenshot.png', fullPage: true, omitBackground: true});
 
@@ -191,7 +200,11 @@ async function runDriver() {
     await putScreenshot(`http://${proxyHost}:8080/api/screenshot/capture`, embedUrl, '/tmp/screenshot.png');
   }
 
+  setStatus("Running Behavior...");
+
   await runBehavior(page, url);
+
+  setStatus("Finishing Capture...");
 
   if (proxyHost) {
     await waitFileDone(`http://${proxyHost}:8080/api/pending`);
@@ -199,6 +212,11 @@ async function runDriver() {
 
   done = true;
   console.log('done');
+  setStatus("Done!");
+}
+
+function setStatus(text) {
+  statusText = text;
 }
 
 async function startSizeTrack() {
@@ -303,7 +321,11 @@ async function runBehavior(page, url) {
 async function runTweet(page) {
   const selector = 'div[data-scribe="element:play_button"]';
 
-  return await page.evaluate(utils.clickShadowRoot, 'twitter-widget', selector);
+  const res = await page.evaluate(utils.clickShadowRoot, 'twitter-widget', selector);
+  if (res){
+    setStatus('Playing video...');
+  }
+  return res;
 }
 
 async function runIG(page) {
@@ -319,6 +341,7 @@ async function runIG(page) {
 
     for (let child of liList) {
       if (!first) {
+        setStatus('Paging through slides...');
         await utils.waitForClick(frame, "div.coreSpriteRightChevron", 500);
         await utils.sleep(1000);
       }
@@ -326,6 +349,7 @@ async function runIG(page) {
 
       const video = await child.$('video');
       if (video) {
+        setStatus('Playing video...');
         await video.click();
         await utils.sleep(1000);
       }
@@ -338,6 +362,7 @@ async function runIG(page) {
 
     for (let video of videos) {
       try {
+        setStatus('Playing video...');
         await video.click();
         await utils.sleep(1000);
       } catch (e) {
@@ -357,6 +382,7 @@ async function runYT(page) {
   }
 
   try {
+    setStatus('Playing Video...');
     await utils.waitForClick(frame, 'button[aria-label="Play"]', 10000);
   } catch (e) {
     console.log(e);

@@ -1,83 +1,12 @@
 <html>
 <head>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway:200">
-  <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.1/build/pure-min.css" integrity="sha384-oAOxQR6DkCoMliIh8yFnu25d7Eq/PHS21PClpwjOTeU2jRSq11vu66rf90/cZr47" crossorigin="anonymous">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="/static/embed.js"></script>
-  <script src="/static/sw.js"></script>
-  <!--<script src="/static/embedlookup.js"></script>-->
-  <style>
-  .header {
-    font-family: "Raleway", "Helvetica Neue", Helvetica, Arial, sans-serif;
-    text-align: center;
-    padding: 0em 1em;
-  }
-  .main {
-    padding: 0em 1em;
-  }
-  #embedcode {
-    background-color: lightgray;
-    max-width: 760px;
-    padding: 20px;
-    display: block;
-    margin-bottom: 1em;
-    font-size: 14px;
-  }
-  #spinner-container {
-    margin-left: 25px;
-  }
-  .hidden {
-    display: none;
-  }
-  .spinner {
-    /* Spinner size and color */
-    width: 1.5rem;
-    height: 1.5rem;
-    border-top-color: #444;
-    border-left-color: #444;
-
-    /* Additional spinner styles */
-    animation: spinner 400ms linear infinite;
-    border-bottom-color: transparent;
-    border-right-color: transparent;
-    border-style: solid;
-    border-width: 2px;
-    border-radius: 50%;  
-    box-sizing: border-box;
-    display: inline-block;
-    vertical-align: middle;
-    animation: spinner 1s linear infinite;
-  }
-
-  /* Animation styles */
-  @keyframes spinner {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-
-  </style>
-
+<link rel="stylesheet" href="https://unpkg.com/purecss@1.0.1/build/pure-min.css" integrity="sha384-oAOxQR6DkCoMliIh8yFnu25d7Eq/PHS21PClpwjOTeU2jRSq11vu66rf90/cZr47" crossorigin="anonymous">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway:200">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="/static/sw.js"></script>
+<script src="/static/embeds.js"></script>
 </head>
 <body>
-    <div class="header"><h1>Archive Embed</h1></div>
-    <div class="main">
-    <div class="pure-u-1-1">
-     <form class="pure-form">
-      <fieldset>
-      <legend>Enter a url to generate archive embed</legend>
-      <input class="pure-input pure-input-1-2" type="text" id="url" name="url">
-      <button class="pure-button pure-button-primary" type="submit">Archive</button>
-      <span id="spinner-container" class="hidden"><span class="spinner"></span></span>
-      </fieldset>
-     </form>
-    </div>
-    <div id="download-warc" class="pure-u-1-1">
-    </div>
-    <div id="embedcode" class="hidden">
-    <code></code>
-    </div>
-    <div class="pure-u-1-1">
-    <div id="archive-preview"></div>
-    </div>
+<embed-proof-creator></embed-proof-creator>
 </body>
 </html>
