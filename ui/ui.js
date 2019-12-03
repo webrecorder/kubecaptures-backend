@@ -13,6 +13,7 @@ class EmbedProofCreator extends LitElement {
     this.working = false;
     this.statusText = "";
     this.embedCode = "";
+    this.blobUrl = null;
     this.archiveSize = 0;
     this.archiveName = "";
   }
@@ -42,9 +43,8 @@ class EmbedProofCreator extends LitElement {
   }
 
   updateEmbedCode() {
-    this.embedCode = `
-<archive-embed archive="${this.archiveName}.warc" url="http://embedserver/e/${this.url}" screenshot="true" width="${this.width}px" height="550px" autoSize></archive-embed>
-<script src="./sw.js"></script>
+    this.embedCode = `<archive-embed archiveUrl="${this.archiveName}.warc" url="http://embedserver/e/${this.url}" screenshot="true" width="${this.width}px" height="550px" autoSize></archive-embed>
+<script src="sw.js"></script>
 `;
   }
 
@@ -91,6 +91,14 @@ class EmbedProofCreator extends LitElement {
       });
     }
 
+    const archiveUrl = `/api/download/${this.id}/${this.archiveName}.warc`;
+
+    const warcResp = await window.fetch(archiveUrl);
+
+    const warcBlob = await warcResp.blob();
+
+    this.blobUrl = URL.createObjectURL(warcBlob);
+
     this.done = true;
 
     console.log(`Elapsed: ${new Date().getTime() - startTime}`);
@@ -114,24 +122,22 @@ class EmbedProofCreator extends LitElement {
        </form>
       </div>
       ${this.done ? html`
-      <div id="download-warc" class="pure-u-1-1">
-        <p class="ready">Your archive is ready! Name your archive (optional) and download the archive.</p>
-        <p class="indent pure-form">Change name for this archive: <input class="pure-input" .value="${this.archiveName}" @input=${this.onNameChange}/></p>
-        <p class="indent" ><a href="/api/download/${this.id}/${this.archiveName}.warc">Download <b>${this.archiveName}.warc</b></a>&nbsp;&nbsp;(${prettyBytes(this.archiveSize)})</p>
-      </div>
-      <p>Copy the following embed code to add to your site.</p>
-      <div id="embedcode" class="indent">
-        <code class="indent">${this.embedCode}</code>
-      </div>
-      ` : html``}
-      
-      <div class="pure-u-1-1">
-        <div id="archive-preview">
-        ${this.done ?
-          html`<archive-embed archive="/api/download/${this.id}/${this.archiveName}.warc" coll="embed" url="http://embedserver/e/${this.url}" screenshot="true" width="${this.width}px" height="550px" autoSize></archive-embed>` :
-          html``}
+        <div id="download-warc" class="pure-u-1-1">
+          <p class="ready">Your archive is ready! Name your archive (optional) and download the archive.</p>
+          <p class="indent pure-form">Change name for this archive: <input id="archive-name" class="pure-input" .value="${this.archiveName}" @input=${this.onNameChange}/></p>
+          <p class="indent"><a href="${this.blobUrl}" download="${this.archiveName}.warc">Download <b>${this.archiveName}.warc</b></a>&nbsp;&nbsp;(${prettyBytes(this.archiveSize)})</p>
         </div>
-      </div>
+        <p>Copy the following embed code to add to your site.</p>
+        <div id="embedcode" class="indent">
+          <textarea @click=${(e) => { e.target.focus(); e.target.select(); } } readonly>${this.embedCode}</textarea>
+        </div>
+        <div class="pure-u-1-1">
+          <p>Embed Preview:</p>
+          <div id="archive-preview" class="indent">
+            <archive-embed archiveUrl="${this.blobUrl}" archiveName="${this.id}.warc" coll="embed" url="http://embedserver/e/${this.url}" screenshot="true" width="${this.width}px" height="550px" autoSize></archive-embed>
+          </div>
+        </div>
+      ` : html``}
   `;
   }
 
@@ -149,13 +155,30 @@ class EmbedProofCreator extends LitElement {
       font-weight: bold;
       color: darkgreen;
     }
+    #archive-name {
+      width: 350px;
+    }
     #embedcode {
       background-color: lightgray;
       max-width: 760px;
-      padding: 20px;
+      padding: 1.1em;
       display: block;
       margin-bottom: 1em;
       font-size: 14px;
+    }
+    #embedcode textarea {
+      white-space: pre-line;
+      width: 100%;
+      min-height: 100px;
+      resize: none;
+      background: transparent;
+      font-family: monospace;
+      border: none;
+      overflow: auto;
+      outline: none;
+      -webkit-box-shadow: none;
+      -moz-box-shadow: none;
+      box-shadow: none;
     }
     #status-container {
       margin: 25px;
@@ -223,7 +246,7 @@ class CaptureRequest {
         this.done = results.done;
 
         if (results.done) {
-          this.clear();
+          this.close();
         }
 
         this._resolve(results);
