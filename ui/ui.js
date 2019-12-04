@@ -1,6 +1,7 @@
 import { LitElement, html, css, styles } from 'lit-element';
 
-import * as prettyBytes from 'pretty-bytes';
+import prettyBytes from 'pretty-bytes';
+import JSZip from 'JSZip';
  
 
 class EmbedProofCreator extends LitElement {
@@ -9,11 +10,15 @@ class EmbedProofCreator extends LitElement {
     this.url = "";
     this.id = "";
     this.width = 550;
+    this.height = 300;
     this.done = false;
     this.working = false;
     this.statusText = "";
     this.embedCode = "";
-    this.blobUrl = null;
+    this.warcBlobUrl = null;
+    this.warcBlob = null;
+    this.zipBlobUrl = null;
+    this.zipSize = 0;
     this.archiveSize = 0;
     this.archiveName = "";
   }
@@ -25,14 +30,18 @@ class EmbedProofCreator extends LitElement {
       url: String,
       id: String,
       width: Number,
+      height: Number,
       statusText: String,
       embedCode: String,
       archiveSize: Number,
+      archiveName: String,
+      zipSize: Number,
     }
   }
 
   onSubmit(event) {
     event.preventDefault();
+    this.url = this.shadowRoot.querySelector("#url").value;
     this.startCapture();
     return false;
   }
@@ -42,23 +51,102 @@ class EmbedProofCreator extends LitElement {
     this.updateEmbedCode();
   }
 
+  onCopy(event) {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(this.embedCode);
+    }
+
+    event.stopPropagation();
+    event.preventDefault();
+    return false;
+  }
+
   updateEmbedCode() {
-    this.embedCode = `<archive-embed archiveUrl="${this.archiveName}.warc" url="http://embedserver/e/${this.url}" screenshot="true" width="${this.width}px" height="550px" autoSize></archive-embed>
+    this.embedCode = `<archive-embed archiveUrl="${this.archiveName}.warc" url="http://embedserver/e/${this.url}" screenshot="true" width="${this.width}px" height="${this.height}px" autoSize></archive-embed>
 <script src="sw.js"></script>
 `;
+    this.clearZip();
+  }
+
+  async createWarcBlob() {
+    const archiveUrl = `/api/download/${this.id}/${this.archiveName}.warc`;
+
+    const warcResp = await window.fetch(archiveUrl);
+
+    this.warcBlob = await warcResp.blob();
+
+    if (this.warcBlobUrl) {
+      URL.revokeObjectURL(this.warcBlobUrl);
+    }
+
+    this.warcBlobUrl = URL.createObjectURL(this.warcBlob);
+
+    return this.warcBlobUrl;
+  }
+
+  clearZip() {
+    if (this.zipBlobUrl) {
+      URL.revokeObjectURL(this.zipBlobUrl);
+      this.zipBlobUrl = null;
+    }
+  }
+
+  async createZip() {
+    this.clearZip();
+
+    const zip = new JSZip();
+
+    const wombatFetch = await window.fetch('./static/wombat.js');
+    const wombatText = await wombatFetch.text();
+    zip.file('static/wombat.js', wombatText, {binary: false});
+
+    const sw = await window.fetch('./sw.js');
+    const swText = await sw.text();
+    zip.file('sw.js', swText, {binary: false});
+    
+    const example = `<html>
+    <body>
+    <h1>Sample Embed</h1>
+    <p>This is a sample embed from <b>${this.archiveName}</b></p>
+    ${this.embedCode}
+    </body>
+    </html>`;
+
+    zip.file('index.html', example, {binary: false});
+
+    zip.file(this.archiveName + ".warc", this.warcBlob, {binary: true});
+
+    this.zipSize = wombatText.length + example.length + swText.length + this.archiveSize;
+
+    const zipBlob = await zip.generateAsync({type: 'blob'});
+
+    this.zipBlobUrl =  URL.createObjectURL(zipBlob);
+
+    return this.zipBlobUrl;
+  }
+
+  async onDownloadZip(event) {
+    if (!this.zipBlobUrl) {
+      this.zipBlobUrl = await this.createZip();
+    }
+
+    const a = document.createElement("a");
+    a.href = this.zipBlobUrl;
+    a.download = this.archiveName + "-sample.zip";
+    a.click();
+
+    event.preventDefault();
+
+    return false;
   }
 
   async startCapture() {
     const startTime = new Date().getTime();
-    
-    if (!this.url) {
-      return;
-    }
 
     this.working = true;
     this.done = false;
     this.archiveSize = 0;
-    this.statusText = "Starting Capture...";
+    this.statusText = "Starting Browser...";
 
     try {
       const request = new CaptureRequest("/api/capture", this.url);
@@ -91,13 +179,13 @@ class EmbedProofCreator extends LitElement {
       });
     }
 
-    const archiveUrl = `/api/download/${this.id}/${this.archiveName}.warc`;
+    this.statusText = "Downloading Web Arhcive...";
 
-    const warcResp = await window.fetch(archiveUrl);
+    await this.createWarcBlob();
 
-    const warcBlob = await warcResp.blob();
+    this.statusText = "Creating ZIP...";
 
-    this.blobUrl = URL.createObjectURL(warcBlob);
+    await this.createZip();
 
     this.done = true;
 
@@ -113,8 +201,8 @@ class EmbedProofCreator extends LitElement {
        <form @submit="${this.onSubmit}" class="pure-form">
         <fieldset>
         <legend>Enter a url to generate archive embed</legend>
-        <input class="pure-input pure-input-1-2" type="text" id="url" name="url" .value="${this.url}" @change=${(e) => this.url = e.target.value}>
-        <button class="pure-button pure-button-primary" ?disabled="${this.working}" type="submit">Archive</button>
+        <input class="pure-input pure-input-1-2" type="url" id="url" name="url" .value="${this.url}" required>
+        <button class="pure-button pure-button-primary" ?disabled="${this.working}" type="submit">${this.working ? 'Archiving...' : 'Archive'}</button>
         <div id="status-container" class="${this.working ? '' : 'hidden'}"><span class="spinner"></span>
           ${this.statusText}&nbsp;&nbsp;<i>(${prettyBytes(this.archiveSize)})</i>
         </div>
@@ -125,16 +213,18 @@ class EmbedProofCreator extends LitElement {
         <div id="download-warc" class="pure-u-1-1">
           <p class="ready">Your archive is ready! Name your archive (optional) and download the archive.</p>
           <p class="indent pure-form">Change name for this archive: <input id="archive-name" class="pure-input" .value="${this.archiveName}" @input=${this.onNameChange}/></p>
-          <p class="indent"><a href="${this.blobUrl}" download="${this.archiveName}.warc">Download <b>${this.archiveName}.warc</b></a>&nbsp;&nbsp;(${prettyBytes(this.archiveSize)})</p>
+          <p class="indent"><a href="${this.warcBlobUrl}" download="${this.archiveName}.warc">Download Archive Only&nbsp;&nbsp;(<b>${this.archiveName}.warc</b>)</a>&nbsp;&nbsp;(${prettyBytes(this.archiveSize)})</p>
+          <p class="indent"><a href="#" @click="${this.onDownloadZip}">Download ZIP for Self-Hosting (Web Archive + JS + sample HTML)&nbsp;&nbsp;(<b>${this.archiveName}.zip</b>)</a>&nbsp;&nbsp;${this.zipSize ? "(" + prettyBytes(this.zipSize) + ")" : ""}</p>
         </div>
         <p>Copy the following embed code to add to your site.</p>
         <div id="embedcode" class="indent">
           <textarea @click=${(e) => { e.target.focus(); e.target.select(); } } readonly>${this.embedCode}</textarea>
+          <button id="copy" @click=${this.onCopy}>Copy</button>
         </div>
         <div class="pure-u-1-1">
           <p>Embed Preview:</p>
           <div id="archive-preview" class="indent">
-            <archive-embed archiveUrl="${this.blobUrl}" archiveName="${this.id}.warc" coll="embed" url="http://embedserver/e/${this.url}" screenshot="true" width="${this.width}px" height="550px" autoSize></archive-embed>
+            <archive-embed archiveUrl="${this.warcBlobUrl}" archiveName="${this.id}.warc" coll="embed" url="http://embedserver/e/${this.url}" screenshot="true" width="${this.width}px" height="${this.height}px" autoSize></archive-embed>
           </div>
         </div>
       ` : html``}
@@ -159,26 +249,38 @@ class EmbedProofCreator extends LitElement {
       width: 350px;
     }
     #embedcode {
-      background-color: lightgray;
       max-width: 760px;
-      padding: 1.1em;
       display: block;
       margin-bottom: 1em;
       font-size: 14px;
     }
     #embedcode textarea {
+      background-color: ghostwhite;
       white-space: pre-line;
       width: 100%;
-      min-height: 100px;
+      min-height: 98px;
+      padding: 1.1em;
       resize: none;
-      background: transparent;
       font-family: monospace;
-      border: none;
-      overflow: auto;
-      outline: none;
-      -webkit-box-shadow: none;
-      -moz-box-shadow: none;
+      border: 1px solid gray;
+      overflow: hidden;
       box-shadow: none;
+      outline: none;
+    }
+    #copy {
+      position: relative;
+      float: right;
+      top: -22px;
+      right: 1px;
+      background: rgb(66, 184, 221);
+      color: white;
+      font-size: 75%;
+      border-radius: 0px;
+      border-width: 1px;
+      outline: none;
+      box-shadow: none;
+      user-select: none;
+      padding: 4px 8px;
     }
     #status-container {
       margin: 25px;

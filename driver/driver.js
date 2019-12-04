@@ -192,9 +192,10 @@ async function runDriver() {
 
   setStatus("Taking Screenshot...");
 
-  await page.screenshot({'path': '/tmp/screenshot.png', fullPage: true, omitBackground: true});
+  const embedHandle = await page.evaluateHandle('document.body.firstElementChild');
+  const embedBounds = await embedHandle.boundingBox();
 
-  await utils.sleep(100);
+  await page.screenshot({'path': '/tmp/screenshot.png', clip: embedBounds, omitBackground: true});
 
   if (proxyHost) {
     await putScreenshot(`http://${proxyHost}:8080/api/screenshot/capture`, embedUrl, '/tmp/screenshot.png');
@@ -228,7 +229,7 @@ async function startSizeTrack() {
 
       currentSize = size;
     } catch (e) {
-      console.log(e);
+      //console.log(e);
       await utils.sleep(500);
     }
   }
