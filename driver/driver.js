@@ -190,20 +190,22 @@ async function runDriver() {
   await utils.sleep(100);
   //const computeWidth = await page.evaluate(() => document.querySelector("body").firstElementChild.scrollWidth);
 
-  setStatus("Taking Screenshot...");
+  const takeScreenshot = async () => {
+    setStatus("Taking Screenshot...");
 
-  const embedHandle = await page.evaluateHandle('document.body.firstElementChild');
-  const embedBounds = await embedHandle.boundingBox();
+    const embedHandle = await page.evaluateHandle('document.body.firstElementChild');
+    const embedBounds = await embedHandle.boundingBox();
 
-  await page.screenshot({'path': '/tmp/screenshot.png', clip: embedBounds, omitBackground: true});
+    await page.screenshot({'path': '/tmp/screenshot.png', clip: embedBounds, omitBackground: true});
 
-  if (proxyHost) {
-    await putScreenshot(`http://${proxyHost}:8080/api/screenshot/capture`, embedUrl, '/tmp/screenshot.png');
+    if (proxyHost) {
+      await putScreenshot(`http://${proxyHost}:8080/api/screenshot/capture`, embedUrl, '/tmp/screenshot.png');
+    }
   }
 
   setStatus("Running Behavior...");
 
-  await runBehavior(page, url);
+  await runBehavior(page, url, takeScreenshot);
 
   setStatus("Finishing Capture...");
 
@@ -278,7 +280,7 @@ async function putScreenshot(putUrl, url, filename) {
 }
 
 
-async function runBehavior(page, url) {
+async function runBehavior(page, url, takeScreenshot) {
   const rule = findOembedRule(url);
 
   if (!rule) {
@@ -291,15 +293,15 @@ async function runBehavior(page, url) {
 
   switch (rule.name) {
     case "tweet":
-      toWait = await runTweet(page);
+      toWait = await runTweet(page, takeScreenshot);
       break;
 
     case "instagram":
-      toWait = await runIG(page);
+      toWait = await runIG(page, takeScreenshot);
       break;
 
     case "youtube":
-      toWait = await runYT(page);
+      toWait = await runYT(page, takeScreenshot);
       break;
   }
 
@@ -319,8 +321,10 @@ async function runBehavior(page, url) {
 
 
 
-async function runTweet(page) {
+async function runTweet(page, takeScreenshot) {
   const selector = 'div[data-scribe="element:play_button"]';
+
+  await takeScreenshot();
 
   const res = await page.evaluate(utils.clickShadowRoot, 'twitter-widget', selector);
   if (res){
@@ -329,7 +333,7 @@ async function runTweet(page) {
   return res;
 }
 
-async function runIG(page) {
+async function runIG(page, takeScreenshot) {
   const frame = await utils.waitForFrame(page, 1);
   if (!frame) {
     return false;
@@ -337,12 +341,14 @@ async function runIG(page) {
 
   const liList = await frame.$$('ul > li', {timeout: 500});
 
+  await takeScreenshot();
+
   if (liList && liList.length) {
     let first = true;
 
     for (let child of liList) {
       if (!first) {
-        setStatus('Paging through slides...');
+        setStatus('Loading Slides...');
         await utils.waitForClick(frame, "div.coreSpriteRightChevron", 500);
         await utils.sleep(1000);
       }
@@ -350,7 +356,7 @@ async function runIG(page) {
 
       const video = await child.$('video');
       if (video) {
-        setStatus('Playing video...');
+        setStatus('Loading Video...');
         await video.click();
         await utils.sleep(1000);
       }
@@ -363,7 +369,7 @@ async function runIG(page) {
 
     for (let video of videos) {
       try {
-        setStatus('Playing video...');
+        setStatus('Loading Video...');
         await video.click();
         await utils.sleep(1000);
       } catch (e) {
@@ -375,7 +381,7 @@ async function runIG(page) {
   }
 }
 
-async function runYT(page) {
+async function runYT(page, takeScreenshot) {
   const frame = await utils.waitForFrame(page, 1);
   if (!frame) {
     console.log('no frame found?');
@@ -383,8 +389,13 @@ async function runYT(page) {
   }
 
   try {
-    setStatus('Playing Video...');
-    await utils.waitForClick(frame, 'button[aria-label="Play"]', 10000);
+    const selector = 'button[aria-label="Play"]';
+    await frame.waitForSelector(selector, {timeout: 10000});
+    await utils.sleep(500);
+    await takeScreenshot();
+    setStatus('Loading Video...');
+    await frame.click(selector);
+
   } catch (e) {
     console.log(e);
     console.log('no play button!');
