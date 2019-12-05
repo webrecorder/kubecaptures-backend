@@ -7,6 +7,7 @@ COPY yarn.lock /app/
 
 RUN yarn install
 
+COPY embeds.json /app/
 COPY *.js /app/
 COPY run.sh /app/
 

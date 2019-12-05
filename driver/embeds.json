@@ -1,0 +1,26 @@
+{"embeds": [
+{
+  "rx": "https?:\/\/twitter.com/[^/]+\/status\/[\\d]+",
+  "oe": "https://publish.twitter.com/oembed",
+  "name": "tweet"
+},
+
+{
+  "rx": "https?:\/\/(www\\.)?instagram\\.com\/p\/[^/]+",
+  "oe": "https://api.instagram.com/oembed",
+  "name": "instagram"
+},
+
+{
+  "rx": "https?:\/\/(www\\.)?youtube\\.com\/watch[?]",
+  "oe": "http://www.youtube.com/oembed",
+  "name": "youtube"
+},
+
+{  "rx": "https?:\/\/(www\\.)?facebook\\.com\/[^/]+\/posts\/",
+   "oe": "https://www.facebook.com/plugins/post/oembed.json/",
+   "name": "facebook"
+}
+]}
+
+

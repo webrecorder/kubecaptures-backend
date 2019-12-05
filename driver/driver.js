@@ -11,34 +11,6 @@ const fs = require('fs');
 const puppeteer = require('puppeteer-core');
 const dns = require('dns').promises;
 
-
-
-const oembedMap = [
-{
-  "rx": /https?:\/\/twitter.com/,
-  "oe": 'https://publish.twitter.com/oembed',
-  "name": "tweet"
-},
-
-{
-  "rx": /https?:\/\/(www\.)?instagram[.]com/,
-  "oe": 'https://api.instagram.com/oembed',
-  "name": "instagram"
-},
-
-{
-  "rx": /https?:\/\/(www\.)?youtube[.]com\/watch/,
-  "oe": 'http://www.youtube.com/oembed',
-  "name": "youtube"
-},
-
-{  "rx": /https?:\/\/(www\.)?facebook[.]com/,
-   "oe": 'https://www.facebook.com/plugins/post/oembed.json/',
-   "name": "facebook"
-}
-
-];
-
 const ARCHIVE_FILE = '/webarchive/collections/capture/archive/archive.warc.gz';
 
 const embedPort = Number(process.env.EMBED_PORT || 3000);
@@ -51,7 +23,17 @@ let currentSize = 0;
 let pendingSize = 0;
 let statusText = "";
 
+let oembedMap = {};
 let oembedCache = {};
+
+async function initOembeds() {
+  let data = await fs.promises.readFile('./embeds.json', {encoding: 'utf8'});
+  oembedMap = JSON.parse(data).embeds;
+
+  for (let r of oembedMap) {
+    r.rx = new RegExp(r.rx);
+  }
+}
 
 function findOembedRule(url) {
   for (let r of oembedMap) {
@@ -107,7 +89,11 @@ app.get('/screenshot', (req, res) => {
 
 
 app.get('/status', (req, res) => {
-  res.json({'done': done, 'status': statusText, 'width': embedWidth, 'type': embedType, 'size': currentSize + pendingSize});
+  res.json({'done': done,
+            'status': statusText,
+            'width': embedWidth,
+            'type': embedType,
+            'size': currentSize + pendingSize});
 });
 
 app.get(/info\/(.*)/, async (req, res) => {
@@ -143,6 +129,8 @@ async function runDriver() {
   const embedHost = process.env.EMBED_HOST || 'localhost';
   const proxyHost = process.env.PROXY_HOST;
 
+  await initOembeds();
+
   if (!url) {
     return;
   }
@@ -160,6 +148,7 @@ async function runDriver() {
       const viewport = null;
       browser = await puppeteer.connect({'browserURL': `http://${hostname}:9222`, 'defaultViewport': viewport});
     } catch (e) {
+      console.log(e);
       console.log('Waiting for browser...');
       await utils.sleep(500);
     }
@@ -190,11 +179,14 @@ async function runDriver() {
   await utils.sleep(100);
   //const computeWidth = await page.evaluate(() => document.querySelector("body").firstElementChild.scrollWidth);
 
-  const takeScreenshot = async () => {
+  const takeScreenshot = async (handle) => {
     setStatus("Taking Screenshot...");
 
-    const embedHandle = await page.evaluateHandle('document.body.firstElementChild');
-    const embedBounds = await embedHandle.boundingBox();
+    if (!handle) {
+      handle = await page.evaluateHandle('document.body.firstElementChild');
+    }
+
+    const embedBounds = await handle.boundingBox();
 
     await page.screenshot({'path': '/tmp/screenshot.png', clip: embedBounds, omitBackground: true});
 
@@ -303,6 +295,10 @@ async function runBehavior(page, url, takeScreenshot) {
     case "youtube":
       toWait = await runYT(page, takeScreenshot);
       break;
+
+    case "facebook":
+      toWait = await runFB(page, takeScreenshot);
+      break;
   }
 
   console.log(`to wait: ${toWait}`);
@@ -328,7 +324,7 @@ async function runTweet(page, takeScreenshot) {
 
   const res = await page.evaluate(utils.clickShadowRoot, 'twitter-widget', selector);
   if (res){
-    setStatus('Playing video...');
+    setStatus('Loading Video...');
   }
   return res;
 }
@@ -401,6 +397,18 @@ async function runYT(page, takeScreenshot) {
     console.log('no play button!');
   }
     
+  return true;
+}
+
+async function runFB(page, takeScreenshot) {
+  const frame = await utils.waitForFrame(page, 1);
+
+  await utils.sleep(500);
+  const handle = await page.waitForSelector('div.fb-post');
+  await takeScreenshot(handle);
+
+  await utils.sleep(1000);
+
   return true;
 }
 

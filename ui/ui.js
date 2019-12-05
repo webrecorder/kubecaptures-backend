@@ -21,6 +21,8 @@ class EmbedProofCreator extends LitElement {
     this.zipSize = 0;
     this.archiveSize = 0;
     this.archiveName = "";
+    this._request = null;
+    this.error = "";
   }
 
   static get properties() {
@@ -36,6 +38,7 @@ class EmbedProofCreator extends LitElement {
       archiveSize: Number,
       archiveName: String,
       zipSize: Number,
+      error: String,
     }
   }
 
@@ -44,6 +47,12 @@ class EmbedProofCreator extends LitElement {
     this.url = this.shadowRoot.querySelector("#url").value;
     this.startCapture();
     return false;
+  }
+
+  onCancel(event) {
+    if (this._request) {
+      this._request.cancel();
+    }
   }
 
   onNameChange(event) {
@@ -147,13 +156,14 @@ class EmbedProofCreator extends LitElement {
     this.done = false;
     this.archiveSize = 0;
     this.statusText = "Starting Browser...";
+    this.error = "";
 
     try {
-      const request = new CaptureRequest("/api/capture", this.url);
+      this._request = new CaptureRequest("/api/capture", this.url);
 
       let result;
 
-      for await (result of request) {
+      for await (result of this._request) {
         this.archiveSize = result.size;
         this.statusText = result.status;
         console.log(result);
@@ -164,12 +174,26 @@ class EmbedProofCreator extends LitElement {
 
       this.updateEmbedCode();
 
-    } catch(e) {
-      console.warn(e);
+    } catch(error) {
+      switch (error) {
+        case "error: invalid_url":
+          this.error = "Sorry, this is not a supported embed URL. Supported embeds are: Tweets, Instagram Posts, YouTube Videos";
+          break;
+
+        case "error: disconnected":
+          this.error = "Connection Lost. Please Try Again";
+          break;
+
+        case "error: canceled":
+          this.error = "Canceled";
+          break;
+
+        default:
+          this.error = "Unknown Error: " + error;
+      }
+      this.working = false;
       return;
 
-    } finally {
-      this.working = false;
     }
 
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
@@ -187,6 +211,7 @@ class EmbedProofCreator extends LitElement {
 
     await this.createZip();
 
+    this.working = false;
     this.done = true;
 
     console.log(`Elapsed: ${new Date().getTime() - startTime}`);
@@ -195,14 +220,16 @@ class EmbedProofCreator extends LitElement {
   render() {
     return html`
       <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.1/build/pure-min.css" integrity="sha384-oAOxQR6DkCoMliIh8yFnu25d7Eq/PHS21PClpwjOTeU2jRSq11vu66rf90/cZr47" crossorigin="anonymous">
-      <div class="header"><h1>Archive Embed</h1></div>
+      <div class="header"><h1>Archive Embed</h1><h4>Supported Embeds: Tweets, Instagram Posts, YouTube Videos</h4></div>
       <div class="main">
       <div class="pure-u-1-1">
        <form @submit="${this.onSubmit}" class="pure-form">
         <fieldset>
-        <legend>Enter a url to generate archive embed</legend>
-        <input class="pure-input pure-input-1-2" type="url" id="url" name="url" .value="${this.url}" required>
+        <legend>Enter a url to generate archive embed:</legend>
+        <input class="pure-input pure-input-1-2" type="url" id="url" name="url" .value="${this.url}" @input="${(e) => this.error = ''}" required>
         <button class="pure-button pure-button-primary" ?disabled="${this.working}" type="submit">${this.working ? 'Archiving...' : 'Archive'}</button>
+        <button class="pure-button ${this.working ? '' : 'hidden'}" id="cancel" type="button" @click="${this.onCancel}">Cancel</button>
+        <div id="error">${this.error}</div>
         <div id="status-container" class="${this.working ? '' : 'hidden'}"><span class="spinner"></span>
           ${this.statusText}&nbsp;&nbsp;<i>(${prettyBytes(this.archiveSize)})</i>
         </div>
@@ -248,6 +275,10 @@ class EmbedProofCreator extends LitElement {
     #archive-name {
       width: 350px;
     }
+    #error {
+      margin: 8px;
+      color: rgb(202, 60, 60);
+    }
     #embedcode {
       max-width: 760px;
       display: block;
@@ -282,8 +313,14 @@ class EmbedProofCreator extends LitElement {
       user-select: none;
       padding: 4px 8px;
     }
+    #cancel {
+      color: white;
+      text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+      background: rgb(202, 60, 60);
+    }
     #status-container {
       margin: 25px;
+      font-weight: bold;
     }
     .indent {
       margin-left: 25px;
@@ -354,7 +391,7 @@ class CaptureRequest {
         this._resolve(results);
         this._initPR();
 
-      } else if (event.data === 'error') {
+      } else if (event.data.startsWith('error: ')) {
         this.close();
         this._reject(event.data);
       }
@@ -362,11 +399,23 @@ class CaptureRequest {
 
     this.ws.addEventListener("error", (event) => {
       this.close();
+      this._reject('error: disconnected');
     });
 
     this.ws.addEventListener("close", (event) => {
       this.close();
+      if (!this.done) {
+        this._reject('error: disconnected');
+      }
     });
+  }
+
+  cancel() {
+    this.close();
+    this.done = true;
+    if (this._reject) {
+      this._reject('error: canceled');
+    }
   }
 
   _initPR() {

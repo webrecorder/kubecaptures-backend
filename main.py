@@ -4,14 +4,37 @@ import requests
 from geventwebsocket.handler import WebSocketHandler
 import time
 
+import json
+import re
+
 EMBED_SERVER = 'http://embedserver-{0}/{1}'
 
+embeds = {}
+
+def init_allowed_urls():
+    global embeds
+    with open('./embeds.json', 'rt') as fh:
+        embeds = json.loads(fh.read())['embeds']
+
+    for embed in embeds:
+        embed['rx'] = re.compile(embed['rx'])
+
+def is_valid_url(url):
+    for embed in embeds:
+        if embed['rx'].match(url):
+            return True
+
+    return False
 
 def init_embeds_routes(flask_app, app):
     @app.route('/api/capture')
     def get_ws():
         ws = request.environ["wsgi.websocket"]
         url = ws.receive()
+
+        if not is_valid_url(url):
+            ws.send('error: invalid_url')
+            return  ''
 
         # set later
         user_params = {'url': 'about:blank'}
@@ -77,6 +100,7 @@ def init_embeds_routes(flask_app, app):
 
 def main():
     embeds = Blueprint('embeds', 'embeds', template_folder='templates', static_folder='static')
+    init_allowed_urls()
     init_embeds_routes(embeds, application)
     application.register_blueprint(embeds)
 
