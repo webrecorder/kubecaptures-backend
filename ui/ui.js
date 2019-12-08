@@ -113,7 +113,9 @@ class EmbedProofCreator extends LitElement {
     const swText = await sw.text();
     zip.file('sw.js', swText, {binary: false});
     
-    const example = `<html>
+    const example = `<!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
     <body>
     <h1>Sample Embed</h1>
     <p>This is a sample embed from <b>${this.archiveName}</b></p>
@@ -237,23 +239,38 @@ class EmbedProofCreator extends LitElement {
        </form>
       </div>
       ${this.done ? html`
-        <div id="download-warc" class="pure-u-1-1">
-          <p class="ready">Your archive is ready! Name your archive (optional) and download the archive.</p>
-          <p class="indent pure-form">Change name for this archive: <input id="archive-name" class="pure-input" .value="${this.archiveName}" @input=${this.onNameChange}/></p>
-          <p class="indent"><a href="${this.warcBlobUrl}" download="${this.archiveName}.warc">Download Archive Only&nbsp;&nbsp;(<b>${this.archiveName}.warc</b>)</a>&nbsp;&nbsp;(${prettyBytes(this.archiveSize)})</p>
-          <p class="indent"><a href="#" @click="${this.onDownloadZip}">Download ZIP for Self-Hosting (Web Archive + JS + sample HTML)&nbsp;&nbsp;(<b>${this.archiveName}.zip</b>)</a>&nbsp;&nbsp;${this.zipSize ? "(" + prettyBytes(this.zipSize) + ")" : ""}</p>
-        </div>
-        <p>Copy the following embed code to add to your site.</p>
-        <div id="embedcode" class="indent">
-          <textarea @click=${(e) => { e.target.focus(); e.target.select(); } } readonly>${this.embedCode}</textarea>
-          <button id="copy" @click=${this.onCopy}>Copy</button>
-        </div>
-        <div class="pure-u-1-1">
-          <p>Embed Preview:</p>
+        <p class="ready">Your archive is ready! You can optionally change the filename for this archive and download below.</p>
+        <p class="pure-form">Archive filename: <input id="archive-name" class="pure-input" .value="${this.archiveName}" @input=${this.onNameChange}/></p>
+
+        <details>
+          <summary><a href="#" @click="${this.onDownloadZip}">Download Zip File for Hosting - ${this.archiveName}.zip</a>&nbsp;&nbsp;${this.zipSize ? "(" + prettyBytes(this.zipSize) + ")" : ""}</summary>
+          <p class="indent">This download includes all the files necessary (web archive + JS files) to host this embed on your own site, including a sample <code>index.html</code> which contains the below embed code.</p>
+          <p class="indent">Simply place the contents of the ZIP on a web server and load the <code>index.html</code> to see the embed<./p>
+          <p class="indent">(Note that the embed must be loaded from a web server, loading from a file system will not work.)</p>
+        </details>
+        <p>OR</p>
+        <details>
+        <summary><a href="${this.warcBlobUrl}" download="${this.archiveName}.warc">Download Web Archive Only - ${this.archiveName}.warc</a>&nbsp;&nbsp;(${prettyBytes(this.archiveSize)}) + Copy Embed Code Below...</summary>
+          <ul class="instructions">
+            <li>Copy the following embed code to add to your site:
+            <div id="embedcode">
+              <textarea @click=${(e) => { e.target.focus(); e.target.select(); } } readonly>${this.embedCode}</textarea>
+              <button id="copy" @click=${this.onCopy}>Copy</button>
+            </div>
+            </li>
+            <li>If you are hosting multiple embeds, you can add the embed code for each. The below files only need to be added once to each page.</li>
+            <li><i>First time only:</i>&nbsp;&nbsp;Download <a href="/sw.js" download="sw.js">sw.js</a>. This file should be placed in same directory as the archive</li>
+            <li><i>First time only:</i>&nbsp;&nbsp;Download <a href="/static/wombat.js" download="wombat.js">/static/wombat.js</a>. This file should be placed in a <code>static</code> directory</li>
+          </ul>
+        </details>
+
+        <details open>
+          <summary>Embed Preview:</summary>
+          <p>The archived embed will render as shown below using the above embed code:</p>
           <div id="archive-preview" class="indent">
             <archive-embed archiveUrl="${this.warcBlobUrl}" archiveName="${this.id}.warc" coll="embed" url="http://embedserver/e/${this.url}" screenshot="true" width="${this.width}px" height="${this.height}px" autoSize></archive-embed>
           </div>
-        </div>
+        </details>
       ` : html``}
   `;
   }
@@ -274,6 +291,15 @@ class EmbedProofCreator extends LitElement {
     }
     #archive-name {
       width: 350px;
+    }
+    details {
+      margin-top: 16px;
+    }
+    summary {
+      display: list-item;
+    }
+    fieldset {
+      padding-bottom: 0px;
     }
     #error {
       margin: 8px;
