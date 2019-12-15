@@ -186,6 +186,14 @@ class EmbedProofCreator extends LitElement {
           this.error = "Connection Lost. Please Try Again";
           break;
 
+        case "error: closed":
+          this.error = "Connection Closed. Please Try Again";
+          break;
+
+        case "error: invalid_embed":
+          this.error = "Sorry, this type of embed is not supported.";
+          break;
+
         case "error: canceled":
           this.error = "Canceled";
           break;
@@ -198,12 +206,13 @@ class EmbedProofCreator extends LitElement {
 
     }
 
-    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+/*    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({
         "msg_type": "removeColl",
         "name": "embed",
       });
     }
+*/
 
     this.statusText = "Downloading Web Arhcive...";
 
@@ -245,8 +254,8 @@ class EmbedProofCreator extends LitElement {
         <details>
           <summary><a href="#" @click="${this.onDownloadZip}">Download Zip File for Hosting - ${this.archiveName}.zip</a>&nbsp;&nbsp;${this.zipSize ? "(" + prettyBytes(this.zipSize) + ")" : ""}</summary>
           <p class="indent">This download includes all the files necessary (web archive + JS files) to host this embed on your own site, including a sample <code>index.html</code> which contains the below embed code.</p>
-          <p class="indent">Simply place the contents of the ZIP on a web server and load the <code>index.html</code> to see the embed<./p>
-          <p class="indent">(Note that the embed must be loaded from a web server, loading from a file system will not work.)</p>
+          <p class="indent">Simply place the contents of the ZIP on a web server and load the <code>index.html</code> to see the embed.</p>
+          <p class="indent">Note that the embed must be loaded from a web server, for example: <code>python -m http.server</code> or <code>node http-server</code></p>
         </details>
         <p>OR</p>
         <details>
@@ -268,7 +277,7 @@ class EmbedProofCreator extends LitElement {
           <summary>Embed Preview:</summary>
           <p>The archived embed will render as shown below using the above embed code:</p>
           <div id="archive-preview" class="indent">
-            <archive-embed archiveUrl="${this.warcBlobUrl}" archiveName="${this.id}.warc" coll="embed" url="http://embedserver/e/${this.url}" screenshot="true" width="${this.width}px" height="${this.height}px" autoSize></archive-embed>
+            <archive-embed archiveUrl="${this.warcBlobUrl}" archiveName="${this.id}.warc" url="http://embedserver/e/${this.url}" screenshot="true" width="${this.width}px" height="${this.height}px" autoSize></archive-embed>
           </div>
         </details>
       ` : html``}

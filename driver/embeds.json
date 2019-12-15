@@ -17,9 +17,28 @@
   "name": "youtube"
 },
 
-{  "rx": "https?:\/\/(www\\.)?facebook\\.com\/[^/]+\/posts\/",
-   "oe": "https://www.facebook.com/plugins/post/oembed.json/",
+{  
+   "rx": "https?:\/\/(www\\.)?facebook\\.com\/[^/]+\/(posts|photos|activity)\/",
+   "oe": "https://www.facebook.com/plugins/post/oembed.json",
    "name": "facebook"
+},
+
+{  
+   "rx": "https?:\/\/(www\\.)?facebook\\.com\/(photo\\.php\\?fbid=|photos\/|permalink.php\\?story_fbid=|media\/set\\?set=|questions\/|notes\/)",
+   "oe": "https://www.facebook.com/plugins/post/oembed.json",
+   "name": "facebook"
+},
+
+{  
+   "rx": "https?:\/\/(www\\.)?facebook\\.com\/(video\\.php\\?|([^/]+\/videos\/))",
+   "oe": "https://www.facebook.com/plugins/video/oembed.json",
+   "name": "facebook_video"
+},
+
+{  "rx": "https?:\/\/(www\\.)?slideshare.net/",
+   "oe": "https://www.slideshare.net/api/oembed/2",
+   "name": "slideshare",
+   "params": {"format": "json"}
 }
 ]}
 

@@ -6,8 +6,17 @@ import time
 
 import json
 import re
+import os
 
-EMBED_SERVER = 'http://embedserver-{0}/{1}'
+if os.environ.get('IN_CLUSTER'):
+    EMBED_SERVER = 'http://embed-browser-{0}/{1}'
+    IMAGE_NAME = 'chrome:76-emp'
+    FLOCK = 'embed-browser'
+
+else:
+    EMBED_SERVER = 'http://embedserver-{0}/{1}'
+    IMAGE_NAME = 'chrome:76'
+    FLOCK = 'embed-browser-local'
 
 embeds = {}
 
@@ -38,9 +47,9 @@ def init_embeds_routes(flask_app, app):
 
         # set later
         user_params = {'url': 'about:blank'}
-        image_name = 'chrome:76'
-        flock = 'embed_browser'
-        resp = app.do_request(image_name, user_params=user_params, flock=flock)
+        resp = app.do_request(IMAGE_NAME, user_params=user_params, flock=FLOCK)
+
+        print(resp)
         reqid = resp['reqid']
 
         print('WS URL: ' + url)
@@ -50,11 +59,13 @@ def init_embeds_routes(flask_app, app):
         ws.send('id:' + reqid)
 
         done = False
+        count = 0
 
         try:
             while True:
                 res = ws.receive()
-                assert res == 'ping', res
+                print('WS PING:', res)
+                #assert res == 'ping', res
 
                 time.sleep(3.0)
 
@@ -63,18 +74,28 @@ def init_embeds_routes(flask_app, app):
 
                 try:
                     r = requests.get(EMBED_SERVER.format(reqid, 'status'))
-                    ws.send('status ' + r.text)
+
                     res = r.json()
+
+                    if res.get('error'):
+                        ws.send('error: ' + res['error'])
+                        break
+                    else:
+                        ws.send('status ' + r.text)
+
                     if res.get('done'):
                         done = True
 
                 except Exception as e:
                     print(e)
-                    ws.send('error')
-                    break
+                    count += 1
+                    if count >= 20:
+                        ws.send('error')
+                        break
 
         except Exception as ee:
-            print(ee)
+            import traceback
+            traceback.print_exc()
 
         finally:
             print('stopping flock: ' + reqid)

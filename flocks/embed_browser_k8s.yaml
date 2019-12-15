@@ -1,4 +1,4 @@
-name: embed-browser-local
+name: embed-browser
 
 volumes:
   tmpdir: '/tmp/.X11-unix'
@@ -6,7 +6,7 @@ volumes:
 
 containers:
   - name: pywb
-    image: embedsarchive_pywb
+    image: gcr.io/nice-root-261802/embedsarchive_pywb
     environment:
       INIT_COLLECTION: capture
 
@@ -16,17 +16,20 @@ containers:
     set_user_params: true
 
     environment:
-      PROXY_HOST: 'pywb'
+      PROXY_HOST: 'localhost'
       PROXY_PORT: '8080'
       PROXY_CA_URL: 'http://wsgiprox/download/pem'
       PROXY_CA_FILE: '/tmp/proxy-ca.pem'
 
   - name: embedserver
-    image: embedsarchive_driver
+    image: gcr.io/nice-root-261802/embedsarchive_driver
     external_network: '${BROWSER_NET}'
     environment:
-      BROWSER_HOST: browser
-      PROXY_HOST: pywb
+      BROWSER_HOST: localhost
+      PROXY_HOST: localhost
       EMBED_HOST: embedserver
       EMBED_PORT: 80
+
+    ports:
+      driver-api: 80
 

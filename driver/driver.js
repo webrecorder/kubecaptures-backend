@@ -22,6 +22,7 @@ let embedType = null;
 let currentSize = 0;
 let pendingSize = 0;
 let statusText = "";
+let errored = null;
 
 let oembedMap = {};
 let oembedCache = {};
@@ -45,7 +46,9 @@ function findOembedRule(url) {
 }
 
 function ruleToUrl(rule, url) {
-  return rule.oe + "?" + querystring.stringify({"url": url});
+  let params = rule.params || {};
+  params.url = url;
+  return rule.oe + "?" + querystring.stringify(params);
 }
 
 async function getOembed(url) {
@@ -60,6 +63,11 @@ async function getOembed(url) {
   }
 
   let res = await fetch(ruleToUrl(rule, url));
+
+  if (res.status != 200) {
+    return null;
+  }
+
   res = await res.json();
 
   oembedCache[url] = res;
@@ -90,6 +98,7 @@ app.get('/screenshot', (req, res) => {
 
 app.get('/status', (req, res) => {
   res.json({'done': done,
+            'error': errored,
             'status': statusText,
             'width': embedWidth,
             'type': embedType,
@@ -111,6 +120,12 @@ app.get(/info\/(.*)/, async (req, res) => {
 app.get(/e\/(.*)/, async (req, res) => {
   const url = req.originalUrl.slice('/e/'.length);
   const oembed = await getOembed(url);
+
+  if (!oembed) {
+    res.sendStatus(404);
+    return;
+  }
+
   const content = oembed.html;
 
   res.set('Content-Type', 'text/html');
@@ -162,10 +177,16 @@ async function runDriver() {
 
   setStatus("Getting Embed Info...");
 
-  try {
-    await page.goto(`${embedPrefix}/info/${url}`);
-  } catch (e) {
+  //try {
+  //  await page.goto(`${embedPrefix}/info/${url}`);
+  //} catch (e) {
     //console.log(e);
+  //}
+  const captureRes = await fetch(`http:\/\/${proxyHost}:8080/capture/record/id_/${embedPrefix}/info/${url}`);
+
+  if (captureRes.status != 200) {
+    errored = 'invalid_embed';
+    return;
   }
 
   const embedUrl = `${embedPrefix}/e/${url}`;
@@ -197,7 +218,11 @@ async function runDriver() {
 
   setStatus("Running Behavior...");
 
-  await runBehavior(page, url, takeScreenshot);
+  try {
+    await runBehavior(page, url, takeScreenshot);
+  } catch (e) {
+    console.warn(e);
+  }
 
   setStatus("Finishing Capture...");
 
@@ -299,6 +324,9 @@ async function runBehavior(page, url, takeScreenshot) {
     case "facebook":
       toWait = await runFB(page, takeScreenshot);
       break;
+
+    case "facebook_video":
+      toWait = await runFBVideo(page, takeScreenshot);
   }
 
   console.log(`to wait: ${toWait}`);
@@ -406,6 +434,21 @@ async function runFB(page, takeScreenshot) {
   await utils.sleep(500);
   const handle = await page.waitForSelector('div.fb-post');
   await takeScreenshot(handle);
+
+  await utils.sleep(1000);
+
+  return true;
+}
+
+async function runFBVideo(page, takeScreenshot) {
+  const frame = await utils.waitForFrame(page, 1);
+
+  await utils.sleep(500);
+  const handle = await page.waitForSelector('div.fb-video');
+  await takeScreenshot(handle);
+ 
+  setStatus('Playing Video...');
+  await utils.waitForClick(frame, "input[aria-label='Play video']", 1000);
 
   await utils.sleep(1000);
 
