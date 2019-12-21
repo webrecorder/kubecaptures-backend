@@ -14,10 +14,20 @@ const dns = require('dns').promises;
 const ARCHIVE_FILE = '/webarchive/collections/capture/archive/archive.warc.gz';
 
 const embedPort = Number(process.env.EMBED_PORT || 3000);
+const embedHost = process.env.EMBED_HOST || 'localhost';
+
+const browserHost = process.env.BROWSER_HOST || 'localhost';
+const captureUrl = process.env.CAPTURE_URL || (process.argv.length > 2 ? process.argv[2] : null);
+const proxyHost = process.env.PROXY_HOST;
+
+const useFreezeDry = false;
 
 let done = false;
 let embedWidth = null;
+let embedHeight = null;
 let embedType = null;
+
+let embedUrl = null;
 
 let currentSize = 0;
 let pendingSize = 0;
@@ -72,6 +82,7 @@ async function getOembed(url) {
 
   oembedCache[url] = res;
   embedWidth = res.width;
+  embedHeight = res.height;
   embedType = rule.name;
 
   return res;
@@ -101,6 +112,7 @@ app.get('/status', (req, res) => {
             'error': errored,
             'status': statusText,
             'width': embedWidth,
+            'height': embedHeight,
             'type': embedType,
             'size': currentSize + pendingSize});
 });
@@ -121,32 +133,31 @@ app.get(/e\/(.*)/, async (req, res) => {
   const url = req.originalUrl.slice('/e/'.length);
   const oembed = await getOembed(url);
 
-  if (!oembed) {
+  if (!oembed || !oembed.html) {
     res.sendStatus(404);
     return;
   }
 
-  const content = oembed.html;
+  let style = "";
+
+  if (embedWidth) {
+    style += `width: ${embedWidth}px;`;
+  }
+  if (embedHeight) {
+    style += `height: ${embedHeight}px;`;
+  }
+
+  const content = `<div id="embedArchiveDiv" style="${style}">${oembed.html}</div>`;
 
   res.set('Content-Type', 'text/html');
-
-  if (!content) {
-    res.sendStatus(404);
-  } else {
-    res.send(content);
-  }
+  res.send(content);
 });
 
 
 async function runDriver() {
-  const browserHost = process.env.BROWSER_HOST || 'localhost';
-  const url = process.env.CAPTURE_URL;
-  const embedHost = process.env.EMBED_HOST || 'localhost';
-  const proxyHost = process.env.PROXY_HOST;
-
   await initOembeds();
 
-  if (!url) {
+  if (!captureUrl) {
     return;
   }
 
@@ -156,9 +167,14 @@ async function runDriver() {
 
   let browser = null;
 
+  if (!process.env.BROWSER_HOST) {
+    browser = await puppeteer.launch({headless: false, defaultViewport: null, executablePath: process.env.EXE_PATH,
+                                      args: ['--disable-features=site-per-process']});
+  }
+
   while (!browser) {
     try {
-      const oembed = await getOembed(url);
+      const oembed = await getOembed(captureUrl);
       //const viewport = {'width': oembed.width || 600, 'height': 600};
       const viewport = null;
       browser = await puppeteer.connect({'browserURL': `http://${hostname}:9222`, 'defaultViewport': viewport});
@@ -182,14 +198,17 @@ async function runDriver() {
   //} catch (e) {
     //console.log(e);
   //}
-  const captureRes = await fetch(`http:\/\/${proxyHost}:8080/capture/record/id_/${embedPrefix}/info/${url}`);
 
-  if (captureRes.status != 200) {
-    errored = 'invalid_embed';
-    return;
+  if (proxyHost) {
+    const captureRes = await fetch(`http:\/\/${proxyHost}:8080/capture/record/mp_/${embedPrefix}/info/${captureUrl}`);
+
+    if (captureRes.status != 200) {
+      errored = 'invalid_embed';
+      return;
+    }
   }
 
-  const embedUrl = `${embedPrefix}/e/${url}`;
+  embedUrl = `${embedPrefix}/e/${captureUrl}`;
 
   setStatus("Loading Embed...");
 
@@ -200,26 +219,10 @@ async function runDriver() {
   await utils.sleep(100);
   //const computeWidth = await page.evaluate(() => document.querySelector("body").firstElementChild.scrollWidth);
 
-  const takeScreenshot = async (handle) => {
-    setStatus("Taking Screenshot...");
-
-    if (!handle) {
-      handle = await page.evaluateHandle('document.body.firstElementChild');
-    }
-
-    const embedBounds = await handle.boundingBox();
-
-    await page.screenshot({'path': '/tmp/screenshot.png', clip: embedBounds, omitBackground: true});
-
-    if (proxyHost) {
-      await putScreenshot(`http://${proxyHost}:8080/api/screenshot/capture`, embedUrl, '/tmp/screenshot.png');
-    }
-  }
-
   setStatus("Running Behavior...");
 
   try {
-    await runBehavior(page, url, takeScreenshot);
+    await runBehavior(page, captureUrl);
   } catch (e) {
     console.warn(e);
   }
@@ -237,6 +240,7 @@ async function runDriver() {
 
 function setStatus(text) {
   statusText = text;
+  console.log(statusText);
 }
 
 async function startSizeTrack() {
@@ -280,15 +284,56 @@ async function waitFileDone(pendingCheckUrl) {
   }
 }
 
-async function putScreenshot(putUrl, url, filename) {
+async function takeCustomCapture(page, handle) {
+    setStatus("Taking Screenshot...");
+
+    try {
+      if (!handle) {
+        //handle = await page.evaluateHandle('document.body.firstElementChild');
+      }
+
+      handle = await page.$("#embedArchiveDiv");
+
+      const embedBounds = await handle.boundingBox();
+
+      await page.screenshot({'path': '/tmp/screenshot.png', clip: embedBounds, omitBackground: true});
+
+      const buff = await fs.promises.readFile('/tmp/screenshot.png');
+
+      await putCustomRecord('screenshot:' + embedUrl, 'image/png', buff);
+    } catch (e) {
+      console.warn(e);
+    }
+
+    if (!useFreezeDry) {
+      return;
+    }
+
+    setStatus("Load Static Snapshot");
+
+    try {
+      const inject = await page.addScriptTag({path: './freeze-dry.js'});
+
+      const html = await page.evaluate('freezeDry.default()');
+
+      await fs.promises.writeFile('/tmp/snapshot.html', html);
+
+      await putCustomRecord('dom:' + embedUrl, 'text/html', html);
+    } catch (e) {
+      console.warn(e);
+    }
+}
+
+
+async function putCustomRecord(url, contentType, buff) {
   try {
-    const buff = await fs.promises.readFile(filename);
+    if (!proxyHost) {
+      return;
+    }
 
-    //console.log('size: ' + buff.length);
+    const putUrl = `http:\/\/${proxyHost}:8080/api/custom/capture?${querystring.stringify({"url": url})}`;
 
-    putUrl += "?" + querystring.stringify({"url": url});
-
-    let res = await fetch(putUrl, { method: 'PUT', body: buff, headers: { 'Content-Type': 'image/png' } });
+    let res = await fetch(putUrl, { method: 'PUT', body: buff, headers: { 'Content-Type': contentType } });
     res = await res.json();
     console.log(res);
   } catch (e)  {
@@ -297,7 +342,7 @@ async function putScreenshot(putUrl, url, filename) {
 }
 
 
-async function runBehavior(page, url, takeScreenshot) {
+async function runBehavior(page, url) {
   const rule = findOembedRule(url);
 
   if (!rule) {
@@ -305,35 +350,30 @@ async function runBehavior(page, url, takeScreenshot) {
     return false;
   }
 
-  let toWait = false;
   let func = null;
 
   switch (rule.name) {
     case "tweet":
-      toWait = await runTweet(page, takeScreenshot);
+      await runTweet(page);
       break;
 
     case "instagram":
-      toWait = await runIG(page, takeScreenshot);
+      await runIG(page);
       break;
 
     case "youtube":
-      toWait = await runYT(page, takeScreenshot);
+      await runYT(page);
       break;
 
     case "facebook":
-      toWait = await runFB(page, takeScreenshot);
+      await runFB(page);
       break;
 
     case "facebook_video":
-      toWait = await runFBVideo(page, takeScreenshot);
+      await runFBVideo(page);
   }
 
-  console.log(`to wait: ${toWait}`);
-
-  if (toWait) {
-    await utils.waitForNet(page, 5000);
-  }
+  await utils.waitForNet(page, 5000);
 
   return true;
 }
@@ -345,10 +385,10 @@ async function runBehavior(page, url, takeScreenshot) {
 
 
 
-async function runTweet(page, takeScreenshot) {
+async function runTweet(page) {
   const selector = 'div[data-scribe="element:play_button"]';
 
-  await takeScreenshot();
+  await takeCustomCapture(page);
 
   const res = await page.evaluate(utils.clickShadowRoot, 'twitter-widget', selector);
   if (res){
@@ -357,15 +397,16 @@ async function runTweet(page, takeScreenshot) {
   return res;
 }
 
-async function runIG(page, takeScreenshot) {
+async function runIG(page) {
   const frame = await utils.waitForFrame(page, 1);
   if (!frame) {
+    console.log('no frame?');
     return false;
   }
 
   const liList = await frame.$$('ul > li', {timeout: 500});
 
-  await takeScreenshot();
+  await takeCustomCapture(page);
 
   if (liList && liList.length) {
     let first = true;
@@ -379,6 +420,7 @@ async function runIG(page, takeScreenshot) {
       first = false;
 
       const video = await child.$('video');
+
       if (video) {
         setStatus('Loading Video...');
         await video.click();
@@ -405,7 +447,7 @@ async function runIG(page, takeScreenshot) {
   }
 }
 
-async function runYT(page, takeScreenshot) {
+async function runYT(page) {
   const frame = await utils.waitForFrame(page, 1);
   if (!frame) {
     console.log('no frame found?');
@@ -416,7 +458,7 @@ async function runYT(page, takeScreenshot) {
     const selector = 'button[aria-label="Play"]';
     await frame.waitForSelector(selector, {timeout: 10000});
     await utils.sleep(500);
-    await takeScreenshot();
+    await takeCustomCapture(page);
     setStatus('Loading Video...');
     await frame.click(selector);
 
@@ -428,27 +470,30 @@ async function runYT(page, takeScreenshot) {
   return true;
 }
 
-async function runFB(page, takeScreenshot) {
-  const frame = await utils.waitForFrame(page, 1);
+async function runFB(page) {
+  const frame = await utils.waitForFrame(page, 2);
 
-  await utils.sleep(500);
+  //await utils.sleep(500);
+  await frame.waitForSelector('[aria-label]');
   const handle = await page.waitForSelector('div.fb-post');
-  await takeScreenshot(handle);
+
+  await takeCustomCapture(page, handle);
 
   await utils.sleep(1000);
 
   return true;
 }
 
-async function runFBVideo(page, takeScreenshot) {
-  const frame = await utils.waitForFrame(page, 1);
+async function runFBVideo(page) {
+  const frame = await utils.waitForFrame(page, 2);
 
-  await utils.sleep(500);
+  //await utils.sleep(500);
+  await frame.waitForSelector('[aria-label]');
   const handle = await page.waitForSelector('div.fb-video');
-  await takeScreenshot(handle);
+  await takeCustomCapture(page, handle);
  
   setStatus('Playing Video...');
-  await utils.waitForClick(frame, "input[aria-label='Play video']", 1000);
+  await utils.waitForClick(frame, "input[type=button][aria-label]", 1000);
 
   await utils.sleep(1000);
 

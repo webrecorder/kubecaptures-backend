@@ -16,11 +16,11 @@ services:
 
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock
-            #- ./main.py:/app/main.py
-            #- ./driver/embeds.json:/app/embeds.json
-            #- ./flocks/:/app/flocks/
-            #- ./templates/:/app/templates/
-            #- ./static/:/app/static/
+            - ./main.py:/app/main.py
+            - ./driver/embeds.json:/app/embeds.json
+            - ./flocks/:/app/flocks/
+            - ./templates/:/app/templates/
+            - ./static/:/app/static/
 
         ports:
             - 9020:9020

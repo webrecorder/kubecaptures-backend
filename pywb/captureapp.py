@@ -29,13 +29,13 @@ class CaptureApp(FrontEndApp):
 
     def _init_routes(self):
         super(CaptureApp, self)._init_routes()
-        self.url_map.add(Rule('/api/screenshot/<coll>', endpoint=self.put_screenshot, methods=['PUT']))
+        self.url_map.add(Rule('/api/custom/<coll>', endpoint=self.put_custom_record, methods=['PUT']))
         self.url_map.add(Rule('/api/pending', endpoint=self.get_pending, methods=['GET']))
 
     def get_pending(self, environ):
         return WbResponse.json_response({'count': self.pending_count, 'size': self.pending_size})
 
-    def put_screenshot(self, environ, coll):
+    def put_custom_record(self, environ, coll):
         chunks = []
         while True:
             buff = environ['wsgi.input'].read()
@@ -49,23 +49,19 @@ class CaptureApp(FrontEndApp):
 
         params = dict(parse_qsl(environ.get('QUERY_STRING')))
 
-        return self.put_record(
-            environ, coll, 'screenshot:{url}', 'resource', params, data
-        )
+        rec_type = 'resource'
 
-    def put_record(self, environ, coll, target_uri_format, rec_type, params, data):
         headers = {'Content-Type': environ.get('CONTENT_TYPE', 'text/plain')}
 
-        url = params.get('url')
+        target_uri = params.get('url')
 
-        if not url:
+        if not target_uri:
             return WbResponse.json_response({'error': 'no url'})
 
         timestamp = params.get('timestamp')
         if timestamp:
             headers['WARC-Date'] = timestamp_to_iso_date(timestamp)
 
-        target_uri = target_uri_format.format(url=url)
         put_url = self.custom_record_path.format(
             url=target_uri, coll=coll, rec_type=rec_type
         )

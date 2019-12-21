@@ -23,6 +23,8 @@ class EmbedProofCreator extends LitElement {
     this.archiveName = "";
     this._request = null;
     this.error = "";
+
+    this._embedSessionId = "embed-" + Math.random().toString(36).substring(2, 15);
   }
 
   static get properties() {
@@ -72,9 +74,8 @@ class EmbedProofCreator extends LitElement {
 
   updateEmbedCode() {
     this.embedCode = `<archive-embed archiveUrl="${this.archiveName}.warc" url="http://embedserver/e/${this.url}" screenshot="true" width="${this.width}px" height="${this.height}px" autoSize></archive-embed>
-<script src="sw.js"></script>
+<script src="static/wombat.js" async></script>
 `;
-    this.clearZip();
   }
 
   async createWarcBlob() {
@@ -93,15 +94,11 @@ class EmbedProofCreator extends LitElement {
     return this.warcBlobUrl;
   }
 
-  clearZip() {
+  async createZip() {
     if (this.zipBlobUrl) {
       URL.revokeObjectURL(this.zipBlobUrl);
       this.zipBlobUrl = null;
     }
-  }
-
-  async createZip() {
-    this.clearZip();
 
     const zip = new JSZip();
 
@@ -136,21 +133,6 @@ class EmbedProofCreator extends LitElement {
     return this.zipBlobUrl;
   }
 
-  async onDownloadZip(event) {
-    if (!this.zipBlobUrl) {
-      this.zipBlobUrl = await this.createZip();
-    }
-
-    const a = document.createElement("a");
-    a.href = this.zipBlobUrl;
-    a.download = this.archiveName + "-sample.zip";
-    a.click();
-
-    event.preventDefault();
-
-    return false;
-  }
-
   async startCapture() {
     const startTime = new Date().getTime();
 
@@ -179,7 +161,7 @@ class EmbedProofCreator extends LitElement {
     } catch(error) {
       switch (error) {
         case "error: invalid_url":
-          this.error = "Sorry, this is not a supported embed URL. Supported embeds are: Tweets, Instagram Posts, YouTube Videos";
+          this.error = "Sorry, this is not a supported embed URL. Supported embeds are: Tweets, Facebook Posts, Instagram Posts, YouTube Videos";
           break;
 
         case "error: disconnected":
@@ -206,15 +188,14 @@ class EmbedProofCreator extends LitElement {
 
     }
 
-/*    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({
         "msg_type": "removeColl",
-        "name": "embed",
+        "name": this._embedSessionId,
       });
     }
-*/
 
-    this.statusText = "Downloading Web Arhcive...";
+    this.statusText = "Downloading Web Archive...";
 
     await this.createWarcBlob();
 
@@ -225,13 +206,21 @@ class EmbedProofCreator extends LitElement {
     this.working = false;
     this.done = true;
 
+    await this.updateComplete;
+
+    //gapi.savetodrive.go(this.shadowRoot.querySelector("#savetodrive"));
+    gapi.savetodrive.render(this.shadowRoot.querySelector("#savetodrive"),
+                        {"src": this.warcBlobUrl,
+                         "filename": this.archiveName + ".warc",
+                         "sitename": "Archive Embeds"});
+
     console.log(`Elapsed: ${new Date().getTime() - startTime}`);
   }
 
   render() {
     return html`
       <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.1/build/pure-min.css" integrity="sha384-oAOxQR6DkCoMliIh8yFnu25d7Eq/PHS21PClpwjOTeU2jRSq11vu66rf90/cZr47" crossorigin="anonymous">
-      <div class="header"><h1>Archive Embed</h1><h4>Supported Embeds: Tweets, Instagram Posts, YouTube Videos</h4></div>
+      <div class="header"><h1>Archive Embed</h1><h4>Supported Embeds: Tweets, Instagram Posts, Facebook Posts, YouTube Videos</h4></div>
       <div class="main">
       <div class="pure-u-1-1">
        <form @submit="${this.onSubmit}" class="pure-form">
@@ -252,7 +241,7 @@ class EmbedProofCreator extends LitElement {
         <p class="pure-form">Archive filename: <input id="archive-name" class="pure-input" .value="${this.archiveName}" @input=${this.onNameChange}/></p>
 
         <details>
-          <summary><a href="#" @click="${this.onDownloadZip}">Download Zip File for Hosting - ${this.archiveName}.zip</a>&nbsp;&nbsp;${this.zipSize ? "(" + prettyBytes(this.zipSize) + ")" : ""}</summary>
+          <summary><a href="${this.zipBlobUrl}" download="${this.archiveName}.zip">Download Zip File for Hosting - ${this.archiveName}.zip</a>&nbsp;&nbsp;${this.zipSize ? "(" + prettyBytes(this.zipSize) + ")" : ""}</summary>
           <p class="indent">This download includes all the files necessary (web archive + JS files) to host this embed on your own site, including a sample <code>index.html</code> which contains the below embed code.</p>
           <p class="indent">Simply place the contents of the ZIP on a web server and load the <code>index.html</code> to see the embed.</p>
           <p class="indent">Note that the embed must be loaded from a web server, for example: <code>python -m http.server</code> or <code>node http-server</code></p>
@@ -273,11 +262,14 @@ class EmbedProofCreator extends LitElement {
           </ul>
         </details>
 
+        <p>OR</p>
+        <div><span id="savetodrive"></span> To Google Drive</div>
+
         <details open>
           <summary>Embed Preview:</summary>
           <p>The archived embed will render as shown below using the above embed code:</p>
           <div id="archive-preview" class="indent">
-            <archive-embed archiveUrl="${this.warcBlobUrl}" archiveName="${this.id}.warc" url="http://embedserver/e/${this.url}" screenshot="true" width="${this.width}px" height="${this.height}px" autoSize></archive-embed>
+            <archive-embed archiveUrl="${this.warcBlobUrl}" archiveName="${this.id}.warc" url="http://embedserver/e/${this.url}" coll="${this._embedSessionId}" screenshot="true" width="${this.width}px" height="${this.height}px" autoSize></archive-embed>
           </div>
         </details>
       ` : html``}
