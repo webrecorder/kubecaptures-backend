@@ -1,0 +1,121 @@
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: embeds-ingress
+  annotations:
+    #kubernetes.io/ingress.class: nginx
+    kubernetes.io/ingress.global-static-ip-name: embeds-archive-static
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    kubernetes.io/tls-acme: "true"
+    acme.cert-manager.io/http01-edit-in-place: "true"
+    cert-manager.io/issue-temporary-certificate: "true"
+    nginx.org/websocket-services: embeds-archive
+    kubernetes.io/ingress.allow-http: "false"
+  labels:
+    app: embeds-archive
+spec:
+  tls:
+    - hosts:
+      - embeds.wab.ac
+      secretName: letsencrypt-prod
+  rules:
+  - host: embeds.wab.ac
+    http:
+      paths:
+        - path: /*
+          backend:
+            serviceName: embeds-archive
+            servicePort: 9020
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: embeds-archive
+  labels:
+    app: embeds-archive
+
+  annotations:
+    beta.cloud.google.com/backend-config: '{"ports": {"9020":"ws-backend"}}'
+    cloud.google.com/load-balancer-type: "Internal"
+
+spec:
+  type: LoadBalancer
+  selector:
+    app: embeds-archive
+
+  ports:
+    - protocol: TCP
+      port: 9020
+      targetPort: 9020
+      name: shepherd
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shepherd
+  labels:
+    app: embeds-archive
+spec:
+  selector:
+    matchLabels:
+      app: embeds-archive
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: embeds-archive
+    spec:
+      initContainers:
+      - name: prepull 
+        image: docker
+        command: ["docker", "pull", "oldwebtoday/chrome:76-emp"]
+        volumeMounts:
+          - name: dockersock
+            mountPath: '/var/run/docker.sock'
+
+      containers:
+      - name: shepherd
+        image: gcr.io/nice-root-261802/embedsarchive_main
+        #imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
+        env:
+          - name: REDIS_BROWSER_URL
+            value: 'redis://localhost/0'
+
+          - name: IN_CLUSTER
+            value: '1'
+
+          - name: IDLE_TIMEOUT
+            value: '60'
+
+          - name: PROXY_HOST
+            value: 'localhost'
+
+          - name: PROXY_PORT
+            value: '8080'
+
+          - name: DEBUG
+            value: '1'
+
+          - name: CONTROLS_TEMPLATE
+            value: 'index.html'
+
+          - name: HOME_TEMPLATE
+            value: 'index.html'
+
+        volumeMounts:
+          - name: dockersock
+            mountPath: '/var/run/docker.sock'
+
+      - name: redis
+        image: redis
+        imagePullPolicy: IfNotPresent
+
+      volumes:
+        - name: dockersock
+          hostPath:
+            path: /var/run/docker.sock
+  

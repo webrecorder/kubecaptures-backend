@@ -8,4 +8,3 @@ COPY main.py driver/embeds.json /app/
 COPY flocks/ /app/flocks/
 COPY templates/ /app/templates/
 COPY static/ /app/static/
-COPY pool_config.yaml /app/pool_config.yaml
