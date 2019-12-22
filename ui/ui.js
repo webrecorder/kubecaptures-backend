@@ -74,7 +74,7 @@ class EmbedProofCreator extends LitElement {
 
   updateEmbedCode() {
     this.embedCode = `<archive-embed archiveUrl="${this.archiveName}.warc" url="http://embedserver/e/${this.url}" screenshot="true" width="${this.width}px" height="${this.height}px" autoSize></archive-embed>
-<script src="static/wombat.js" async></script>
+<script src="sw.js" async></script>
 `;
   }
 
