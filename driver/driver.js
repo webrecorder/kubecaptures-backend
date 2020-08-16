@@ -8,6 +8,8 @@ const app = express();
 const querystring = require('querystring');
 const fs = require('fs');
 
+const AWS = require('aws-sdk');
+
 const puppeteer = require('puppeteer-core');
 const dns = require('dns').promises;
 
@@ -36,6 +38,8 @@ let errored = null;
 
 let oembedMap = {};
 let oembedCache = {};
+
+const OUTPUT_FILE = "/tmp/out/archive.wacz";
 
 async function initOembeds() {
   let data = await fs.promises.readFile('./embeds.json', {encoding: 'utf8'});
@@ -88,18 +92,24 @@ async function getOembed(url) {
   return res;
 }
 
-app.get('/download', async(req, res) => {
-  if (done) {
-    try {
-      res.sendFile(ARCHIVE_FILE);
-      return;
-    } catch (e) {
-      console.log(e);
-    }
+app.get('/finish', async(req, res) => {
+  if (!done) {
+    res.sendStatus(404);
+    res.json({"error": "not_finished"});
   }
 
-  res.sendStatus(404);
-  res.send('Not Found');
+  try {
+    return;
+  } catch (e) {
+    console.log(e);
+  }
+
+
+});
+
+app.get('/exit', async(req, res) => {
+  res.json({"exit": 0});
+  setTimeout(() => process.exit(0), 1000);
 });
 
 app.get('/screenshot', (req, res) => {
@@ -214,7 +224,7 @@ async function runDriver() {
 
   await page.goto(embedUrl, {'waitUntil': 'networkidle0'});
 
-  startSizeTrack();
+  //startSizeTrack();
 
   await utils.sleep(100);
   //const computeWidth = await page.evaluate(() => document.querySelector("body").firstElementChild.scrollWidth);
@@ -233,9 +243,13 @@ async function runDriver() {
     await waitFileDone(`http://${proxyHost}:8080/api/pending`);
   }
 
+  await commitWacz();
+
   done = true;
   console.log('done');
   setStatus("Done!");
+
+  process.exit(0);
 }
 
 function setStatus(text) {
@@ -257,6 +271,67 @@ async function startSizeTrack() {
     }
   }
 }
+
+async function commitWacz() {
+  const usp = new URLSearchParams();
+  usp.set("url", captureUrl);
+
+  console.log("Requesting WACZ");
+  const resp = await fetch(`http://${proxyHost}:8080/api/wacz/capture?${usp.toString()}`);
+
+  if (resp.status !== 200) {
+    console.log("error", await resp.text());
+    return;
+  }
+
+  try {
+    const res = await uploadFile();
+    console.log(res);
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+function uploadFile() {
+  const accessKeyId =  process.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+
+  // Configure client for use with Spaces
+  let endpoint = null;
+
+  if (process.env.AWS_ENDPOINT) {
+    endpoint = new AWS.Endpoint(process.env.AWS_ENDPOINT);
+  }
+
+  const s3 = new AWS.S3({
+      endpoint,
+      accessKeyId,
+      secretAccessKey
+  });
+
+  const uu = new URL(process.env.AWS_UPLOAD_PREFIX + process.env.UPLOAD_FILENAME);
+
+  var params = {
+      Body: fs.createReadStream(OUTPUT_FILE),
+      Bucket: uu.hostname,
+      Key: uu.pathname.slice(1),
+      ACL: 'public-read'
+  };
+
+  console.log("Uploading WACZ", params);
+
+  return new Promise((resolve, reject) => {
+    s3.putObject(params, function(err, data) {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(data);
+      }
+    });
+  });
+}
+
+
 
 async function waitFileDone(pendingCheckUrl) {
   while (true) {

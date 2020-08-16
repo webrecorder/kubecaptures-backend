@@ -1,10 +1,15 @@
-FROM oldwebtoday/shepherd:1.2.0-dev
+#FROM oldwebtoday/shepherd:1.2.0-dev
+FROM python:3.8
 
-RUN pip install gevent-websocket
+WORKDIR /app/
 
-CMD python -u main.py
+ADD requirements.txt /app/
 
-COPY main.py driver/embeds.json /app/
-COPY flocks/ /app/flocks/
+RUN pip install -r requirements.txt
+
+ADD main.py /app/
+CMD uvicorn main:app --port 80 --host 0.0.0.0
+
+#COPY app.py driver/embeds.json /app/
 COPY templates/ /app/templates/
 COPY static/ /app/static/

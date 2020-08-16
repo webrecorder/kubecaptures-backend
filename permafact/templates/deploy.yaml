@@ -1,0 +1,123 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: upload-auth
+  namespace: browsers
+type: Opaque
+stringData:
+  AWS_ACCESS_KEY_ID: {{ .Values.storage.access_key }}
+  AWS_SECRET_ACCESS_KEY: {{ .Values.storage.secret_key }}
+  AWS_ENDPOINT: {{ .Values.storage.api_endpoint }}
+  AWS_UPLOAD_PREFIX: {{ .Values.storage.upload_prefix }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.name }}-config
+
+data:
+  BROWSER: {{ .Values.browser }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: perma-fact-{{ .Values.name }}
+spec:
+  selector:
+    matchLabels:
+      app: perma-fact-{{ .Values.name }}
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: perma-fact-{{ .Values.name }}
+
+    spec:
+      initContainers:
+
+      containers:
+        - name: main
+          image: ikreymer/permaproof-main
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.name }}-config
+
+
+---
+
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: perma-fact-{{ .Values.name }}
+  labels:
+    app: perma-fact-{{ .Values.name }}
+
+spec:
+  #type: LoadBalancer
+  #externalTrafficPolicy: Cluster
+  selector:
+    app: perma-fact-{{ .Values.name }}
+
+  ports:
+    - protocol: TCP
+      port: 80
+      name: main
+
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-perma-fact-{{ .Values.name }}
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    cert-manager.io/cluster-issuer: "cert-{{ .Values.name }}"
+    nginx.ingress.kubernetes.io/upstream-vhost: "{{ .Values.host }}"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header X-Forwarded-Proto {{ .Values.scheme | default "https" }};
+
+spec:
+  tls:
+    - hosts:
+      - {{ .Values.host }}
+      secretName: cert-{{ .Values.name }}
+
+  rules:
+  - host: {{ .Values.host }}
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: perma-fact-{{ .Values.name }}
+          servicePort: 80
+
+---
+
+apiVersion: cert-manager.io/v1alpha2
+kind: ClusterIssuer
+metadata:
+  name: cert-{{ .Values.name }}
+  namespace: cert-manager
+spec:
+  acme:
+    # The ACME server URL
+    server: https://acme-v02.api.letsencrypt.org/directory
+    # Email address used for ACME registration
+    email: ilya@webrecorder.net
+    # Name of a secret used to store the ACME account private key
+    privateKeySecretRef:
+      name: cert-{{ .Values.name }}
+    # Enable the HTTP-01 challenge provider
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+      selector: {}
+
+

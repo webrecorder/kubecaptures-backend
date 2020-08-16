@@ -1,5 +1,8 @@
 from gevent.monkey import patch_all; patch_all()
 
+import gevent
+import sys
+
 import requests
 from urllib.parse import parse_qsl
 
@@ -9,6 +12,9 @@ from pywb.apps.wbrequestresponse import WbResponse
 from warcio.timeutils import timestamp_now, timestamp_to_iso_date
 from werkzeug.routing import Rule
 import tempfile
+
+import os
+from wacz.main import main as wacz_main
 
 def create_buff_func(params, name):
     return TempWriteBuffer(application, params.get('url', ''))
@@ -31,9 +37,36 @@ class CaptureApp(FrontEndApp):
         super(CaptureApp, self)._init_routes()
         self.url_map.add(Rule('/api/custom/<coll>', endpoint=self.put_custom_record, methods=['PUT']))
         self.url_map.add(Rule('/api/pending', endpoint=self.get_pending, methods=['GET']))
+        self.url_map.add(Rule('/api/wacz/<coll>', endpoint=self.get_wacz, methods=['GET']))
 
     def get_pending(self, environ):
         return WbResponse.json_response({'count': self.pending_count, 'size': self.pending_size})
+
+    def get_wacz(self, environ, coll):
+        if self.pending_count != 0 or self.pending_size != 0:
+            return WbResponse.json_response({'error': 'not_ready'}, status='404 Not Found')
+
+        params = dict(parse_qsl(environ.get('QUERY_STRING')))
+
+        archive_dir = os.path.join('collections', coll, 'archive')
+        all_warcs = [os.path.join(archive_dir, name) for name in os.listdir(archive_dir)]
+        all_warcs.append('-o')
+        all_warcs.append('/tmp/out/archive.wacz')
+
+        url = params.get('url')
+        if url:
+            all_warcs.append('--url')
+            all_warcs.append(url)
+
+        try:
+            wacz_main(all_warcs)
+        except Exception as e:
+            print(e)
+
+        return WbResponse.json_response({"done": "/tmp/out/archive.wacz"})
+
+        #environ['pywb.static_dir'] = '/tmp/'
+        #return self.static_handler(environ, "archive.wacz")
 
     def put_custom_record(self, environ, coll):
         chunks = []

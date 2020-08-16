@@ -9,10 +9,10 @@ enable_auto_fetch: true
 
 recorder:
   source_coll: live
-  filename_template: archive.warc.gz
+  #filename_template: archive.warc.gz
 
 proxy:
-  enable_banner: true
+  enable_banner: false
   enable_wombat: true
   enable_content_rewrite: true
   coll: capture

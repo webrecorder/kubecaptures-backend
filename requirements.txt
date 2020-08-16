@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+aiofiles
+jinja2
+kubernetes_asyncio
+aiohttp

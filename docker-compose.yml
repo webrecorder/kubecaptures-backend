@@ -1,46 +1,10 @@
 version: '3.3'
 
 services:
-    shepherd:
-        image: embedsarchive_main
+    main:
+        image: ikreymer/permaproof-main
         build: ./
-        command: python -u main.py
-        environment:
-            - BROWSER_NET=embeds_browsers
-            - PROXY_HOST=pywb
-            - CONTROLS_TEMPLATE=index.html
-            - HOME_TEMPLATE=index.html
-
-        depends_on:
-            - redis
-
-        volumes:
-            - /var/run/docker.sock:/var/run/docker.sock
-            - ./main.py:/app/main.py
-            - ./driver/embeds.json:/app/embeds.json
-            - ./flocks/:/app/flocks/
-            - ./templates/:/app/templates/
-            - ./static/:/app/static/
 
         ports:
-            - 9020:9020
-
-        networks:
-          - browsers
-          - default
-
-    redis:
-        image: redis:3.2.4
-        networks:
-          - browsers
-          - default
-
-networks:
-    default:
-        driver: bridge
-
-    browsers:
-        driver: bridge
-
-
+          - 7030:7030
 

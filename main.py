@@ -1,138 +1,98 @@
-from app import application
-from flask import Blueprint, jsonify, Response, send_from_directory, request
-import requests
-from geventwebsocket.handler import WebSocketHandler
-import time
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import StreamingResponse, FileResponse
 
-import json
-import re
+from kubernetes_asyncio import client, config
+from kubernetes_asyncio.utils.create_from_yaml import create_from_yaml_single_item
+
 import os
+import base64
+import yaml
 
-if os.environ.get('IN_CLUSTER'):
-    EMBED_SERVER = 'http://embed-browser-{0}/{1}'
-    IMAGE_NAME = 'chrome:76-emp'
-    FLOCK = 'embed-browser'
+import aiohttp
 
-else:
-    EMBED_SERVER = 'http://embedserver-{0}/{1}'
-    IMAGE_NAME = 'chrome:76'
-    FLOCK = 'embed-browser-local'
+app = FastAPI()
 
-embeds = {}
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-def init_allowed_urls():
-    global embeds
-    with open('./embeds.json', 'rt') as fh:
-        embeds = json.loads(fh.read())['embeds']
+templates = Jinja2Templates(directory="templates")
 
-    for embed in embeds:
-        embed['rx'] = re.compile(embed['rx'])
+#if os.environ.get("IN_CLUSTER"):
+if os.environ.get("BROWSER"):
+    print('Cluster Init')
+    config.load_incluster_config()
+#else:
+#await config.load_kube_config()
 
-def is_valid_url(url):
-    for embed in embeds:
-        if embed['rx'].match(url):
-            return True
+#configuration = client.Configuration()
+#api_client = client.ApiClient(configuration)
+core_api = client.CoreV1Api()
+batch_api = client.BatchV1Api()
 
-    return False
+def make_jobid():
+    return base64.b32encode(os.urandom(15)).decode('utf-8').lower()
 
-def init_embeds_routes(flask_app, app):
-    @app.route('/api/capture')
-    def get_ws():
-        ws = request.environ["wsgi.websocket"]
-        url = ws.receive()
 
-        if not is_valid_url(url):
-            ws.send('error: invalid_url')
-            return  ''
+@app.get("/", response_class=HTMLResponse)
+async def read_item(request: Request):
+    id = "test"
+    return templates.TemplateResponse("index.html", {"request": request, "id": id})
 
-        # set later
-        user_params = {'url': 'about:blank'}
-        resp = app.do_request(IMAGE_NAME, user_params=user_params, flock=FLOCK)
 
-        print(resp)
-        reqid = resp['reqid']
+@app.get("/test")
+async def test_k8s():
+    print("Listing pods with their IPs:")
+    ret = await v1.list_pod_for_all_namespaces()
 
-        print('WS URL: ' + url)
+    pods = []
 
-        res = app.get_pool(reqid=reqid).start(reqid, environ={'CAPTURE_URL': url})
+    for i in ret.items:
+        print(i.status.pod_ip, i.metadata.namespace, i.metadata.name)
+        pods.append({'ip': i.status.pod_ip, 'name': i.metadata.name})
 
-        ws.send('id:' + reqid)
+    return {'pods': pods}
 
-        done = False
-        count = 0
 
-        try:
-            while True:
-                res = ws.receive()
-                print('WS PING:', res)
-                #assert res == 'ping', res
+@app.get("/run")
+async def run(url: str = ""):
+    jobid = make_jobid()
 
-                time.sleep(3.0)
+    filename = jobid + "/0.wacz"
 
-                if done:
-                    continue
+    data = templates.env.get_template("browser-job.yaml").render({"jobid": jobid, "url": url, "upload_filename": filename})
+    job = yaml.safe_load(data)
+    res = await batch_api.create_namespaced_job(namespace="browsers", body=job)
 
-                try:
-                    r = requests.get(EMBED_SERVER.format(reqid, 'status'))
+    #data = templates.env.get_template("browser-service.yaml").render({"jobid": jobid, "url": url})
+    #service = yaml.safe_load(data)
+    #res = await core_api.create_namespaced_service(namespace="browsers", body=service)
 
-                    res = r.json()
+    return {"jobid": jobid}
 
-                    if res.get('error'):
-                        ws.send('error: ' + res['error'])
-                        break
-                    else:
-                        ws.send('status ' + r.text)
 
-                    if res.get('done'):
-                        done = True
+@app.get("/download/{jobid}.wacz")
+async def download(jobid):
+    async def iter_chunks(source):
+        async for chunk, _ in source.iter_chunks():
+            yield chunk
 
-                except Exception as e:
-                    print(e)
-                    count += 1
-                    if count >= 20:
-                        ws.send('error')
+    async with aiohttp.ClientSession() as session:
+        async with session.get('http://service-{0}.browsers:8080/api/download/capture'.format(jobid)) as resp:
+            if resp.status != 200:
+                print(resp.status)
+                return {"error": {"status": resp.status}}
+
+            with open('/tmp/download', 'wb') as fd:
+                while True:
+                    chunk = await resp.content.read()
+                    if not chunk:
                         break
 
-        except Exception as ee:
-            import traceback
-            traceback.print_exc()
+                    fd.write(chunk)
 
-        finally:
-            print('stopping flock: ' + reqid)
-            app.get_pool(reqid=reqid).stop(reqid)
-            return ''
+        async with session.get('http://service-{0}.browsers:80/exit'.format(jobid)) as resp:
+            print('Exiting?')
 
-
-    @app.route('/api/download/<reqid>/<name>.warc')
-    def download_warc(reqid, name):
-        try:
-            r = requests.get(EMBED_SERVER.format(reqid, 'download'), stream=True)
-            if r.status_code == 404:
-                return jsonify({'error': 'not_yet_ready'})
-
-            return Response(r.iter_content(1024*32), mimetype='application/octet-stream')
-        except Exception as e:
-            return jsonify({'error': str(e)})
-
-    @app.route('/sw.js')
-    def static_sw():
-        return send_from_directory('/app/static', 'sw.js')
-
-
-def main():
-    embeds = Blueprint('embeds', 'embeds', template_folder='templates', static_folder='static')
-    init_allowed_urls()
-    init_embeds_routes(embeds, application)
-    application.register_blueprint(embeds)
-
-
-main()
-
-
-# ============================================================================
-if __name__ == '__main__':
-    from gevent.pywsgi import WSGIServer
-    WSGIServer(('0.0.0.0', 9020), application, handler_class=WebSocketHandler).serve_forever()
-
-
-
+        return FileResponse("/tmp/download", media_type="application/warc")

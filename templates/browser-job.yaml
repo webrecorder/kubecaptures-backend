@@ -1,0 +1,108 @@
+---
+apiVersion: batch/v1
+kind: Job
+activeDeadlineSeconds: 600
+metadata:
+  name: "capture-{{ jobid }}"
+  jobid: "{{ jobid }}"
+
+spec:
+  backoffLimit: 4
+  ttlSecondsAfterFinished: 120
+  template:
+    spec:
+      restartPolicy: "Never"
+      hostAliases:
+        - ip: "127.0.0.1"
+          hostnames:
+            - "embedserver"
+
+      volumes:
+        - name: wacz
+          emptyDir: {}
+
+      containers:
+      - name: browser
+        image: oldwebtoday/chrome:84
+        imagePullPolicy: IfNotPresent
+        env:
+          - name: PROXY_HOST
+            value: "localhost"
+
+          - name: PROXY_PORT
+            value: "8080"
+
+          - name: PROXY_CA_URL
+            value: "http://wsgiprox/download/pem"
+
+          - name: PROXY_CA_FILE
+            value: "/tmp/proxy-ca.pem"
+
+          - name: HEADLESS
+            value: "1"
+
+        securityContext:
+          capabilities: {'add': ['NET_ADMIN', 'SYS_ADMIN', 'SETUID']}
+
+      - name: pywb
+        image: ikreymer/permaproof-pywb
+        imagePullPolicy: Always
+        env:
+          - name: INIT_COLLECTION
+            value: "capture"
+
+        volumeMounts:
+          - name: wacz
+            mountPath: '/tmp/out'
+
+      - name: driver
+        image: ikreymer/permaproof-driver
+        imagePullPolicy: Always
+        env:
+          - name: BROWSER_HOST
+            value: "localhost"
+
+          - name: PROXY_HOST
+            value: "localhost"
+
+          - name: EMBED_HOST
+            value: "embedserver"
+
+          - name: EMBED_PORT
+            value: "80"
+
+          - name: CAPTURE_URL
+            value: "{{ url }}"
+
+          - name: UPLOAD_FILENAME
+            value: "{{ upload_filename }}"
+
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: upload-auth
+                key: AWS_ACCESS_KEY_ID
+
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: upload-auth
+                key: AWS_SECRET_ACCESS_KEY
+
+          - name: AWS_ENDPOINT
+            valueFrom:
+              secretKeyRef:
+                name: upload-auth
+                key: AWS_ENDPOINT
+
+          - name: AWS_UPLOAD_PREFIX
+            valueFrom:
+              secretKeyRef:
+                name: upload-auth
+                key: AWS_UPLOAD_PREFIX
+
+        volumeMounts:
+          - name: wacz
+            mountPath: '/tmp/out'
+
+
