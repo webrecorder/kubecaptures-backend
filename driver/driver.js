@@ -21,6 +21,8 @@ const embedHost = process.env.EMBED_HOST || 'localhost';
 const browserHost = process.env.BROWSER_HOST || 'localhost';
 const captureUrl = process.env.CAPTURE_URL || (process.argv.length > 2 ? process.argv[2] : null);
 const proxyHost = process.env.PROXY_HOST;
+const proxyPort = process.env.PROXY_PORT || 8080;
+const proxyOrigin = `http://${proxyHost}:${proxyPort}`;
 
 const useFreezeDry = false;
 
@@ -92,25 +94,6 @@ async function getOembed(url) {
   return res;
 }
 
-app.get('/finish', async(req, res) => {
-  if (!done) {
-    res.sendStatus(404);
-    res.json({"error": "not_finished"});
-  }
-
-  try {
-    return;
-  } catch (e) {
-    console.log(e);
-  }
-
-
-});
-
-app.get('/exit', async(req, res) => {
-  res.json({"exit": 0});
-  setTimeout(() => process.exit(0), 1000);
-});
 
 app.get('/screenshot', (req, res) => {
   res.sendFile('/tmp/screenshot.png');
@@ -210,7 +193,7 @@ async function runDriver() {
   //}
 
   if (proxyHost) {
-    const captureRes = await fetch(`http:\/\/${proxyHost}:8080/capture/record/mp_/${embedPrefix}/info/${captureUrl}`);
+    const captureRes = await fetch(`${proxyOrigin}/capture/record/mp_/${embedPrefix}/info/${captureUrl}`);
 
     if (captureRes.status != 200) {
       errored = 'invalid_embed';
@@ -240,14 +223,33 @@ async function runDriver() {
   setStatus("Finishing Capture...");
 
   if (proxyHost) {
-    await waitFileDone(`http://${proxyHost}:8080/api/pending`);
+    await waitFileDone(`${proxyOrigin}/api/pending`);
   }
 
-  await commitWacz();
+  if (process.env.EXIT_FILE) {
+    console.log("Creating exit file: " + process.env.EXIT_FILE);
+    fs.closeSync(fs.openSync(process.env.EXIT_FILE, 'w'));
+  }
+
+  try {
+    console.log("Closing Browser...");
+    await browser.close();
+
+  } catch (e) {
+    console.log(e);
+  }
+
+  await commitWacz(embedUrl);
 
   done = true;
   console.log('done');
   setStatus("Done!");
+
+  try {
+    await fetch(`${proxyOrigin}/api/exit`);
+  } catch (e) {
+
+  }
 
   process.exit(0);
 }
@@ -272,12 +274,12 @@ async function startSizeTrack() {
   }
 }
 
-async function commitWacz() {
+async function commitWacz(url) {
   const usp = new URLSearchParams();
-  usp.set("url", captureUrl);
+  usp.set("url", url);
 
   console.log("Requesting WACZ");
-  const resp = await fetch(`http://${proxyHost}:8080/api/wacz/capture?${usp.toString()}`);
+  const resp = await fetch(`${proxyOrigin}/api/wacz/capture?${usp.toString()}`);
 
   if (resp.status !== 200) {
     console.log("error", await resp.text());
@@ -309,7 +311,7 @@ function uploadFile() {
       secretAccessKey
   });
 
-  const uu = new URL(process.env.AWS_UPLOAD_PREFIX + process.env.UPLOAD_FILENAME);
+  const uu = new URL(process.env.STORAGE_PREFIX + process.env.UPLOAD_FILENAME);
 
   var params = {
       Body: fs.createReadStream(OUTPUT_FILE),
@@ -318,7 +320,7 @@ function uploadFile() {
       ACL: 'public-read'
   };
 
-  console.log("Uploading WACZ", params);
+  console.log("Uploading WACZ: " + OUTPUT_FILE);
 
   return new Promise((resolve, reject) => {
     s3.putObject(params, function(err, data) {
@@ -406,7 +408,7 @@ async function putCustomRecord(url, contentType, buff) {
       return;
     }
 
-    const putUrl = `http:\/\/${proxyHost}:8080/api/custom/capture?${querystring.stringify({"url": url})}`;
+    const putUrl = `${proxyOrigin}/api/custom/capture?${querystring.stringify({"url": url})}`;
 
     let res = await fetch(putUrl, { method: 'PUT', body: buff, headers: { 'Content-Type': contentType } });
     res = await res.json();

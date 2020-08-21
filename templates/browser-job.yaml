@@ -3,8 +3,16 @@ apiVersion: batch/v1
 kind: Job
 activeDeadlineSeconds: 600
 metadata:
-  name: "capture-{{ jobid }}"
-  jobid: "{{ jobid }}"
+  name: "capture-{{ jobid }}-{{ index }}"
+  labels:
+    userid: "{{ userid }}"
+    jobid: "{{ jobid }}"
+    index: "{{ index }}"
+
+  annotations:
+    captureUrl: "{{ url }}"
+    accessUrl: "{{ access_prefix }}{{ filename }}"
+    storageUrl: "{{ storage_prefix }}{{ filename }}"
 
 spec:
   backoffLimit: 4
@@ -24,7 +32,7 @@ spec:
       containers:
       - name: browser
         image: oldwebtoday/chrome:84
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         env:
           - name: PROXY_HOST
             value: "localhost"
@@ -41,8 +49,22 @@ spec:
           - name: HEADLESS
             value: "1"
 
+          - name: EXIT_FILE
+            value: "/tmp/out/exit"
+
         securityContext:
           capabilities: {'add': ['NET_ADMIN', 'SYS_ADMIN', 'SETUID']}
+
+        resources:
+          limits:
+            cpu: 300m
+
+          requests:
+            cpu: 100m
+
+        volumeMounts:
+          - name: wacz
+            mountPath: '/tmp/out'
 
       - name: pywb
         image: ikreymer/permaproof-pywb
@@ -51,6 +73,13 @@ spec:
           - name: INIT_COLLECTION
             value: "capture"
 
+        resources:
+          limits:
+            cpu: 200m
+
+          requests:
+            cpu: 100m
+
         volumeMounts:
           - name: wacz
             mountPath: '/tmp/out'
@@ -58,12 +87,31 @@ spec:
       - name: driver
         image: ikreymer/permaproof-driver
         imagePullPolicy: Always
+
+        resources:
+          limits:
+            cpu: 100m
+
+          requests:
+            cpu: 25m
+
+        volumeMounts:
+          - name: wacz
+            mountPath: '/tmp/out'
+
+        envFrom:
+          - secretRef:
+              name: upload-auth
+
         env:
           - name: BROWSER_HOST
             value: "localhost"
 
           - name: PROXY_HOST
             value: "localhost"
+
+          - name: PROXY_PORT
+            value: "8080"
 
           - name: EMBED_HOST
             value: "embedserver"
@@ -75,34 +123,7 @@ spec:
             value: "{{ url }}"
 
           - name: UPLOAD_FILENAME
-            value: "{{ upload_filename }}"
+            value: "{{ filename }}"
 
-          - name: AWS_ACCESS_KEY_ID
-            valueFrom:
-              secretKeyRef:
-                name: upload-auth
-                key: AWS_ACCESS_KEY_ID
-
-          - name: AWS_SECRET_ACCESS_KEY
-            valueFrom:
-              secretKeyRef:
-                name: upload-auth
-                key: AWS_SECRET_ACCESS_KEY
-
-          - name: AWS_ENDPOINT
-            valueFrom:
-              secretKeyRef:
-                name: upload-auth
-                key: AWS_ENDPOINT
-
-          - name: AWS_UPLOAD_PREFIX
-            valueFrom:
-              secretKeyRef:
-                name: upload-auth
-                key: AWS_UPLOAD_PREFIX
-
-        volumeMounts:
-          - name: wacz
-            mountPath: '/tmp/out'
-
-
+          - name: EXIT_FILE
+            value: "/tmp/out/exit"

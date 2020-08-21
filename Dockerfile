@@ -8,6 +8,7 @@ ADD requirements.txt /app/
 RUN pip install -r requirements.txt
 
 ADD main.py /app/
+ADD cleanup.py /app/
 CMD uvicorn main:app --port 80 --host 0.0.0.0
 
 #COPY app.py driver/embeds.json /app/

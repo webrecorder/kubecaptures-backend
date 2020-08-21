@@ -9,7 +9,21 @@ stringData:
   AWS_ACCESS_KEY_ID: {{ .Values.storage.access_key }}
   AWS_SECRET_ACCESS_KEY: {{ .Values.storage.secret_key }}
   AWS_ENDPOINT: {{ .Values.storage.api_endpoint }}
-  AWS_UPLOAD_PREFIX: {{ .Values.storage.upload_prefix }}
+  STORAGE_PREFIX: {{ .Values.storage.storage_prefix }}
+
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: upload-auth
+  namespace: default
+type: Opaque
+stringData:
+  AWS_ACCESS_KEY_ID: {{ .Values.storage.access_key }}
+  AWS_SECRET_ACCESS_KEY: {{ .Values.storage.secret_key }}
+  AWS_ENDPOINT: {{ .Values.storage.api_endpoint }}
+  STORAGE_PREFIX: {{ .Values.storage.storage_prefix }}
 
 ---
 apiVersion: v1
@@ -19,6 +33,39 @@ metadata:
 
 data:
   BROWSER: {{ .Values.browser }}
+  ACCESS_PREFIX: {{ .Values.storage.access_prefix }}
+  STORAGE_PREFIX: {{ .Values.storage.storage_prefix }}
+
+
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: cleanup
+  namespace: default
+spec:
+  schedule: "*/30 * * * *"
+  successfulJobsHistoryLimit: 0
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: cleanup
+            image: ikreymer/permaproof-main
+            imagePullPolicy: Always
+            command: ["python", "cleanup.py"]
+            envFrom:
+              - secretRef:
+                  name: upload-auth
+            env:
+              - name: JOB_CLEANUP_INTERVAL
+                value: "{{ .Values.job_cleanup_interval }}"
+
+              - name: BROWSER
+                value: "{{ .Values.browser }}"
 
 ---
 apiVersion: apps/v1
