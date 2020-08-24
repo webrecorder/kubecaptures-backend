@@ -22,5 +22,10 @@ The system uses Helm to deploy to a Kubernetes cluster. All of the cluster confi
 
    Or, you can also run `./relaunch.sh`, which will stop previous cluster and redeploy.
 
+### Ingress Option
 
+If the `ingress.host` and `ingress.cert_email` are set, the Helm chart will configure an Ingress controller,
+on the specified host, and attempt to obtain an SSL cert (via Letsencrypt).
+
+If the host is omitted, no ingress is created. This may be useful for only accessing the service via an internal network.
 
