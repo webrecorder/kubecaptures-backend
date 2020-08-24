@@ -18,9 +18,10 @@ The system uses Helm to deploy to a Kubernetes cluster. All of the cluster confi
 
 2. Fill in the details of credentials
 
-3. Run `helm install perma permafact -f ./config.yaml` to the currently configured Kubernetes cluster.
+3. To start, run `helm install perma permafact -f ./config.yaml` to the currently configured Kubernetes cluster.
 
-   Or, you can also run `./relaunch.sh`, which will stop previous cluster and redeploy.
+4. To stop the cluster, run `helm uninsall perma permafact`
+
 
 ### Ingress Option
 
