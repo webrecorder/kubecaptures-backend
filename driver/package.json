@@ -9,5 +9,8 @@
     "fetch": "^1.1.0",
     "node-fetch": "^2.6.0",
     "puppeteer-core": "^2.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^7.7.0"
   }
 }

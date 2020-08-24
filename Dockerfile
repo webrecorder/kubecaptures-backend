@@ -14,3 +14,5 @@ CMD uvicorn main:app --port 80 --host 0.0.0.0
 #COPY app.py driver/embeds.json /app/
 COPY templates/ /app/templates/
 COPY static/ /app/static/
+COPY replay/ /app/replay/
+

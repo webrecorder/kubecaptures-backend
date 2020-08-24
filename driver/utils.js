@@ -1,4 +1,14 @@
+let status = "";
 
+
+function setStatus(newStatus) {
+  status = newStatus;
+  console.log(status);
+}
+
+function getStatus() {
+  return status;
+}
 
 function clickShadowRoot(shadowTarget, target) {
   const widget = document.querySelector(shadowTarget);
@@ -33,10 +43,10 @@ async function waitForNet(page, idle) {
 
   let tid = null;
 
-  client.send('Network.enable');
-  client.on('Network.loadingFinished', restartTimer);
+  client.send("Network.enable");
+  client.on("Network.loadingFinished", restartTimer);
 
-  const networkManager = page._frameManager.networkManager();
+  //const networkManager = page._frameManager.networkManager();
 
   function restartTimer() {
     if (tid) { clearTimeout(tid); }
@@ -45,7 +55,7 @@ async function waitForNet(page, idle) {
       resolve();
       clearTimeout(tid);
     }, idle); 
-  };
+  }
 
   restartTimer();
   return p;
@@ -59,7 +69,7 @@ async function waitForClick(frame, selector, timeout = 30000) {
   
 
 async function waitForFrame(page, inx, timeout = 3000) {
-  if (!await waitForPredicate(timeout, () => { return page.frames().length > inx })) {
+  if (!await waitForPredicate(timeout, () => { return page.frames().length > inx; })) {
     return false;
   }
 
@@ -84,10 +94,12 @@ async function waitForPredicate(ms, predicate) {
 }
 
 module.exports = {
-  clickShadowRoot: clickShadowRoot,
-  sleep: sleep,
-  waitForNet: waitForNet,
-  waitForClick: waitForClick,
-  waitForFrame: waitForFrame,
-  waitForPredicate: waitForPredicate
+  clickShadowRoot,
+  sleep,
+  waitForNet,
+  waitForClick,
+  waitForFrame,
+  waitForPredicate,
+  setStatus,
+  getStatus
 };

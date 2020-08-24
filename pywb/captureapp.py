@@ -64,10 +64,10 @@ class CaptureApp(FrontEndApp):
         return resp
 
     def get_wacz(self, environ, coll):
-        if self.pending_count != 0 or self.pending_size != 0:
-            return WbResponse.json_response(
-                {"error": "not_ready"}, status="404 Not Found"
-            )
+        # if self.pending_count != 0 or self.pending_size != 0:
+        #    return WbResponse.json_response(
+        #        {"error": "not_ready"}, status="404 Not Found"
+        #    )
 
         params = dict(parse_qsl(environ.get("QUERY_STRING")))
 

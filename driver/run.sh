@@ -1,2 +1,2 @@
 #!/bin/bash
-node driver.js
+node main.js
