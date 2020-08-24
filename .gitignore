@@ -1,4 +1,4 @@
 *.pyc
 **/node_modules/
 *.warc
-
+config.yaml

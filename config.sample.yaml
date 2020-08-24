@@ -1,0 +1,31 @@
+# Default values for permafact.
+
+storage:
+  access_key: "<S3 Access Key>"
+  secret_key: "<S3 Secret Key>"
+  # api_endpoint can be blank if using AWS S3, otherwise, set to your providers S3 endpoint
+  api_endpoint: ""
+
+  # s3:// url to S3 storage, eg. s3://my-bucket/perma-fact/dev/
+  storage_prefix: "<s3://my-bucket/perma-fact/dev/"
+
+  # https:// url, publicly access prefix for the s3 storage (for preview):
+  access_prefix: "<https://my-bucket.s3.amazonaws.com/perma-fact/dev/">
+
+# duration of storage artifacts left in block storage
+job_cleanup_interval: "240"
+
+name: dev
+
+# optional: if 'host' is set, a publicly accessible Ingress controller is created with an SSL cert (using letsencrypt)
+ingress:
+  host: ""
+  cert_email: "my-email-for-letsencrypt@example.com"
+
+# Advanced options
+browser: chrome:84
+
+# path to browser profile to use
+profile_url: ""
+
+
