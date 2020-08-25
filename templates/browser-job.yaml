@@ -10,12 +10,13 @@ metadata:
     index: "{{ index }}"
 
   annotations:
+    userTag: "{{ user_tag }}"
     captureUrl: "{{ url }}"
     accessUrl: "{{ access_prefix }}{{ filename }}"
     storageUrl: "{{ storage_prefix }}{{ filename }}"
 
 spec:
-  backoffLimit: 4
+  backoffLimit: 2
   ttlSecondsAfterFinished: 120
   template:
     spec:

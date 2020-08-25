@@ -1,5 +1,5 @@
 
-# only add this if ingress.host is defined
+# Ingress - only add ingress if 'host' is defined
 {{ if .Values.ingress.host }}
 
 ---

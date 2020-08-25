@@ -14,13 +14,15 @@ Requirements:
 
 The system uses Helm to deploy to a Kubernetes cluster. All of the cluster config settings are set it config.yaml
 
-1. Copy `config.sample.yaml` -> `config.yaml`
+1. Copy `config.sample.yaml` -> `config.yaml`.
 
-2. Fill in the details of credentials
+2. Fill in the details of credentials.
+
+3. Before first run, create the `browsers` namespace by running `kubectl create namespace browsers`.
 
 3. To start, run `helm install perma permafact -f ./config.yaml` to the currently configured Kubernetes cluster.
 
-4. To stop the cluster, run `helm uninsall perma permafact`
+4. To stop the cluster, run `helm uninsall perma permafact`.
 
 
 ### Ingress Option

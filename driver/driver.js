@@ -127,7 +127,7 @@ class Driver
       await Promise.race([this.waitFileDone(`${this.proxyOrigin}/api/pending`), utils.sleep(15000)])
     }
 
-    await this.commitWacz(this.entryUrl || this.captureUrl);
+    const res = await this.commitWacz(this.entryUrl || this.captureUrl);
 
     try {
       await fetch(`${this.proxyOrigin}/api/exit`);
@@ -138,7 +138,7 @@ class Driver
     this.done = true;
     setStatus("Done!");
 
-    process.exit(0);
+    process.exit(res);
   }
 
   getDefaultViewport() {
@@ -160,8 +160,10 @@ class Driver
     try {
       const res = await this.uploadFile();
       console.log(res);
+      return 0;
     } catch (err) {
       console.log(err);
+      return 1;
     }
   }
   

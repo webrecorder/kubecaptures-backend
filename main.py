@@ -24,6 +24,7 @@ from cleanup import StorageManager
 class CaptureRequest(BaseModel):
     urls: List[str]
     userid: str = "user"
+    tag: str = ""
 
 
 app = FastAPI()
@@ -65,7 +66,7 @@ async def read_item(request: Request):
 
 @app.post("/captures")
 async def start(capture: CaptureRequest):
-    return await start_job(capture.urls, capture.userid)
+    return await start_job(capture)
 
 
 @app.delete("/capture/{jobid}/{index}")
@@ -131,18 +132,19 @@ async def list_jobs(jobid: str = "", userid: str = "", index: int = -1):
     return {"jobs": jobs}
 
 
-async def start_job(urls: List[str], userid: str = "user"):
+async def start_job(capture: CaptureRequest):
     jobid = make_jobid()
 
     index = 0
-    for url in urls:
+    for url in capture.urls:
         job_name = get_job_name(jobid, index)
         data = templates.env.get_template("browser-job.yaml").render(
             {
-                "userid": userid,
+                "userid": capture.userid,
                 "jobid": jobid,
                 "index": index,
                 "job_name": job_name,
+                "user_tag": capture.tag,
                 "url": url,
                 "filename": f"{ jobid }/{ index }.wacz",
                 "access_prefix": access_prefix,

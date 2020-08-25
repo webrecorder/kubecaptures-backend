@@ -6,10 +6,10 @@ metadata:
   namespace: browsers
 type: Opaque
 stringData:
-  AWS_ACCESS_KEY_ID: {{ .Values.storage.access_key }}
-  AWS_SECRET_ACCESS_KEY: {{ .Values.storage.secret_key }}
-  AWS_ENDPOINT: {{ .Values.storage.api_endpoint }}
-  STORAGE_PREFIX: {{ .Values.storage.storage_prefix }}
+  AWS_ACCESS_KEY_ID: "{{ .Values.storage.access_key }}"
+  AWS_SECRET_ACCESS_KEY: "{{ .Values.storage.secret_key }}"
+  AWS_ENDPOINT: "{{ .Values.storage.api_endpoint }}"
+  STORAGE_PREFIX: "{{ .Values.storage.storage_prefix }}"
   MC_HOST: "https://{{ .Values.storage.access_key }}:{{ .Values.storage.secret_key }}@{{ .Values.storage.api_endpoint }}"
 
 ---
@@ -20,10 +20,10 @@ metadata:
   namespace: default
 type: Opaque
 stringData:
-  AWS_ACCESS_KEY_ID: {{ .Values.storage.access_key }}
-  AWS_SECRET_ACCESS_KEY: {{ .Values.storage.secret_key }}
-  AWS_ENDPOINT: {{ .Values.storage.api_endpoint }}
-  STORAGE_PREFIX: {{ .Values.storage.storage_prefix }}
+  AWS_ACCESS_KEY_ID: "{{ .Values.storage.access_key }}"
+  AWS_SECRET_ACCESS_KEY: "{{ .Values.storage.secret_key }}"
+  AWS_ENDPOINT: "{{ .Values.storage.api_endpoint }}"
+  STORAGE_PREFIX: "{{ .Values.storage.storage_prefix }}"
 
 ---
 apiVersion: v1
@@ -104,10 +104,19 @@ metadata:
   labels:
     app: perma-fact-{{ .Values.name }}
 
+{{- if .Values.service }}
+  {{- if .Values.service.annotations }}
+  annotations:
+  {{- range $key, $val := .Values.service.annotations }}
+    {{ $key }}: {{ $val | quote }}
+  {{- end }}
+  {{- end }}
+{{- end }}
+
 spec:
-  type: ClusterIP
   selector:
     app: perma-fact-{{ .Values.name }}
+
 
   ports:
     - protocol: TCP

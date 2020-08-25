@@ -22,6 +22,11 @@ ingress:
   host: ""
   cert_email: "my-email-for-letsencrypt@example.com"
 
+# optional: uncomment annotations to add to the service (one or more 'name: value' mappings)
+#service:
+#  annotations:
+#    name: value    
+
 # Advanced options
 browser: chrome:84
 
