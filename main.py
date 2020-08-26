@@ -15,6 +15,10 @@ from pprint import pprint
 import os
 import base64
 import yaml
+import html
+
+import urllib.parse
+import datetime
 
 import aiohttp
 
@@ -111,9 +115,9 @@ async def list_jobs(jobid: str = "", userid: str = "", index: int = -1):
 
     for job in api_response.items:
         data = job.metadata.labels
-        data.update(job.metadata.annotations)
-        data['startTime'] = job.status.start_time
-        data.pop("storageUrl", "")
+        data["captureUrl"] = job.metadata.annotations["captureUrl"]
+        data["userTag"] = job.metadata.annotations["userTag"]
+        data["startTime"] = job.status.start_time
 
         if job.status.active:
             data["status"] = "In progress"
@@ -121,11 +125,9 @@ async def list_jobs(jobid: str = "", userid: str = "", index: int = -1):
             data["status"] = "Failed"
         elif job.status.succeeded:
             data["status"] = "Complete"
+            data["accessUrl"] = html.unescape(job.metadata.annotations["accessUrl"])
         else:
             data["status"] = "Unknown"
-
-        if data["status"] != "Complete":
-            data.pop("accessUrl", "")
 
         jobs.append(data)
 
@@ -142,8 +144,12 @@ async def start_job(capture: CaptureRequest):
         filename = f"{ jobid }/{ index }.wacz"
         storage_url = storage_prefix + filename
 
-        access_url = access_prefix + filename
-        access_url = await storage.get_presigned_url(access_url)
+        try:
+            download_filename = urllib.parse.urlsplit(url).netloc + '-' + str(datetime.datetime.utcnow())[:10] + '.wacz'
+        except:
+            download_filename = None
+
+        access_url = await storage.get_presigned_url(storage_url, download_filename)
 
         data = templates.env.get_template("browser-job.yaml").render(
             {

@@ -24,7 +24,7 @@ class StorageManager:
             parts = urllib.parse.urlsplit(url)
             resp = await s3.delete_object(Bucket=parts.netloc, Key=parts.path[1:])
 
-    async def get_presigned_url(self, url):
+    async def get_presigned_url(self, url, download_filename=None):
         async with self.session.create_client(
             "s3",
             endpoint_url=self.endpoint_url,
@@ -32,9 +32,17 @@ class StorageManager:
             aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
         ) as s3:
             parts = urllib.parse.urlsplit(url)
+
+            params = {"Bucket": parts.netloc, "Key": parts.path[1:]}
+
+            if download_filename:
+                params["ResponseContentDisposition"] = (
+                    "attachment; filename=" + download_filename
+                )
+
             return await s3.generate_presigned_url(
                 "get_object",
-                Params={"Bucket": parts.netloc, "Key": parts.path[1:]},
+                Params=params,
                 ExpiresIn=int(os.environ.get("JOB_CLEANUP_INTERVAL", 60)) * 60,
             )
 
