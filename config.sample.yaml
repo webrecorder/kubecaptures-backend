@@ -10,7 +10,12 @@ storage:
   storage_prefix: "<s3://my-bucket/perma-fact/dev/"
 
   # https:// url, publicly access prefix for the s3 storage (for preview):
-  access_prefix: "<https://my-bucket.s3.amazonaws.com/perma-fact/dev/">
+  access_prefix: "<https://my-bucket.s3.amazonaws.com/perma-fact/dev/>"
+
+  # acl settings, if any
+  # to enable uploaded files to be public, set to:
+  # acl: "public-read"
+  acl: ""
 
 # duration of storage artifacts left in block storage
 job_cleanup_interval: "240"

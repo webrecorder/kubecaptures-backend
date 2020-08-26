@@ -113,6 +113,7 @@ async def list_jobs(jobid: str = "", userid: str = "", index: int = -1):
         data = job.metadata.labels
         data.update(job.metadata.annotations)
         data['startTime'] = job.status.start_time
+        data.pop("storageUrl", "")
 
         if job.status.active:
             data["status"] = "In progress"
@@ -124,7 +125,6 @@ async def list_jobs(jobid: str = "", userid: str = "", index: int = -1):
             data["status"] = "Unknown"
 
         if data["status"] != "Complete":
-            data.pop("storageUrl", "")
             data.pop("accessUrl", "")
 
         jobs.append(data)
@@ -138,6 +138,13 @@ async def start_job(capture: CaptureRequest):
     index = 0
     for url in capture.urls:
         job_name = get_job_name(jobid, index)
+
+        filename = f"{ jobid }/{ index }.wacz"
+        storage_url = storage_prefix + filename
+
+        access_url = access_prefix + filename
+        access_url = await storage.get_presigned_url(access_url)
+
         data = templates.env.get_template("browser-job.yaml").render(
             {
                 "userid": capture.userid,
@@ -146,9 +153,9 @@ async def start_job(capture: CaptureRequest):
                 "job_name": job_name,
                 "user_tag": capture.tag,
                 "url": url,
-                "filename": f"{ jobid }/{ index }.wacz",
-                "access_prefix": access_prefix,
-                "storage_prefix": storage_prefix,
+                "filename": filename,
+                "access_url": access_url,
+                "storage_url": storage_url,
                 "profile_url": profile_url,
                 "headless": headless,
             }

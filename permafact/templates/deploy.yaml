@@ -11,6 +11,7 @@ stringData:
   AWS_ENDPOINT: "{{ .Values.storage.api_endpoint }}"
   STORAGE_PREFIX: "{{ .Values.storage.storage_prefix }}"
   MC_HOST: "https://{{ .Values.storage.access_key }}:{{ .Values.storage.secret_key }}@{{ .Values.storage.api_endpoint }}"
+  ACL: "{{ .Values.storage.acl }}"
 
 ---
 apiVersion: v1
@@ -36,6 +37,7 @@ data:
   ACCESS_PREFIX: {{ .Values.storage.access_prefix }}
   STORAGE_PREFIX: {{ .Values.storage.storage_prefix }}
   PROFILE_URL: "{{ .Values.profile_url | default "" }}"
+  JOB_CLEANUP_INTERVAL: "{{ .Values.job_cleanup_interval }}"
 
 ---
 apiVersion: batch/v1beta1
@@ -60,12 +62,10 @@ spec:
             envFrom:
               - secretRef:
                   name: storage-auth
-            env:
-              - name: JOB_CLEANUP_INTERVAL
-                value: "{{ .Values.job_cleanup_interval }}"
 
-              - name: BROWSER
-                value: "{{ .Values.browser }}"
+              - configMapRef:
+                  name: {{ .Values.name }}-config
+
 
 ---
 apiVersion: apps/v1

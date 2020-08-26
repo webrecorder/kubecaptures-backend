@@ -11,9 +11,8 @@ class StorageManager:
     def __init__(self):
         self.session = aiobotocore.get_session()
         self.endpoint_url = os.environ.get("AWS_ENDPOINT", "")
-        if self.endpoint_url:
-            self.endpoint_url = "https://" + self.endpoint_url
-
+        if not self.endpoint_url:
+            self.endpoint_url = None
 
     async def delete_object(self, url):
         async with self.session.create_client(
@@ -24,6 +23,20 @@ class StorageManager:
         ) as s3:
             parts = urllib.parse.urlsplit(url)
             resp = await s3.delete_object(Bucket=parts.netloc, Key=parts.path[1:])
+
+    async def get_presigned_url(self, url):
+        async with self.session.create_client(
+            "s3",
+            endpoint_url=self.endpoint_url,
+            aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+            aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+        ) as s3:
+            parts = urllib.parse.urlsplit(url)
+            return await s3.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": parts.netloc, "Key": parts.path[1:]},
+                ExpiresIn=int(os.environ.get("JOB_CLEANUP_INTERVAL", 60)) * 60,
+            )
 
 
 # ============================================================================
@@ -85,7 +98,7 @@ async def delete_jobs(cleanup_interval):
 async def delete_pods(cleanup_interval):
     core_api = client.CoreV1Api()
     api_response = await core_api.list_namespaced_pod(
-        namespace="browsers", field_selector="status.phase=Succeeded",
+        namespace="browsers", field_selector="status.phase=Succeeded"
     )
 
     for pod in api_response.items:

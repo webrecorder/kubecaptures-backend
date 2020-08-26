@@ -12,8 +12,8 @@ metadata:
   annotations:
     userTag: "{{ user_tag }}"
     captureUrl: "{{ url }}"
-    accessUrl: "{{ access_prefix }}{{ filename }}"
-    storageUrl: "{{ storage_prefix }}{{ filename }}"
+    accessUrl: "{{ access_url }}"
+    storageUrl: "{{ storage_url }}"
 
 spec:
   backoffLimit: 2

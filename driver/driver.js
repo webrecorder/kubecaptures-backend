@@ -190,9 +190,12 @@ class Driver
       Body: fs.createReadStream(OUTPUT_FILE),
       Bucket: uu.hostname,
       Key: uu.pathname.slice(1),
-      ACL: "public-read"
     };
-  
+
+    if (process.env.ACL) {
+      params.ACL = process.env.ACL;
+    }
+
     setStatus("Uploading WACZ: " + OUTPUT_FILE);
   
     return new Promise((resolve, reject) => {
