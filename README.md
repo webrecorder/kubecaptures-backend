@@ -22,7 +22,7 @@ The system uses Helm to deploy to a Kubernetes cluster. All of the cluster confi
 
 3. To start, run `helm install perma permafact -f ./config.yaml` to the currently configured Kubernetes cluster.
 
-4. To stop the cluster, run `helm uninsall perma permafact`.
+4. To stop the cluster, run `helm uninstall perma permafact`.
 
 
 ### Ingress Option
