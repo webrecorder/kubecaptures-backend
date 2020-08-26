@@ -27,10 +27,14 @@ ingress:
   host: ""
   cert_email: "my-email-for-letsencrypt@example.com"
 
-# optional: uncomment annotations to add to the service (one or more 'name: value' mappings)
+# optional: uncomment annotations to add one or more 'name: value' mappings to the service,
+# e.g.
+#    service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+# uncomment type to match, if necessary
 #service:
 #  annotations:
-#    name: value    
+#    name: value
+#  type: LoadBalancer
 
 # Advanced options
 browser: chrome:84
