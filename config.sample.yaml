@@ -42,4 +42,7 @@ browser: chrome:84
 # path to browser profile to use
 profile_url: ""
 
+# endpoint to load profile from
+profile_api_endpoint: ""
+
 

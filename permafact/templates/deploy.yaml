@@ -10,7 +10,7 @@ stringData:
   AWS_SECRET_ACCESS_KEY: "{{ .Values.storage.secret_key }}"
   AWS_ENDPOINT: "{{ .Values.storage.api_endpoint }}"
   STORAGE_PREFIX: "{{ .Values.storage.storage_prefix }}"
-  MC_HOST: "https://{{ .Values.storage.access_key }}:{{ .Values.storage.secret_key }}@{{ .Values.storage.api_endpoint }}"
+  MC_HOST: "https://{{ .Values.storage.access_key }}:{{ .Values.storage.secret_key }}@{{ .Values.profile_api_endpoint }}"
   ACL: "{{ .Values.storage.acl }}"
 
 ---
