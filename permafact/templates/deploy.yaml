@@ -66,6 +66,12 @@ spec:
               - configMapRef:
                   name: {{ .Values.name }}-config
 
+            resources:
+              limits:
+                cpu: 100m
+
+              requests:
+                cpu: 25m
 
 ---
 apiVersion: apps/v1
@@ -76,7 +82,7 @@ spec:
   selector:
     matchLabels:
       app: perma-fact-{{ .Values.name }}
-  replicas: 1
+  replicas: 2
   template:
     metadata:
       labels:
