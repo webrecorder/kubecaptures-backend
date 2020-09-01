@@ -90,6 +90,43 @@ class Driver
       await page._client.send('Network.setBypassServiceWorker', {bypass: true});
     }
 
+    this.playerDone = {};
+    this.players = {};
+
+    await page._client.send('Media.enable');
+    await page._client.on('Media.playerEventsAdded', (params) => {
+      const player = params.playerId;
+
+      for (const e of params.events) {
+        try {
+          const value = JSON.parse(e.value);
+
+          if (value.event === "kEnded") {
+            console.log(`Player ${player} finished!`);
+            this.playerDone[player]();
+          }
+
+          if (value.event === "kPlay") {
+            this.players[player] = new Promise((resolve, reject) => {
+              console.log(`Wait for player ${player}`);
+              this.playerDone[player] = resolve;
+            });
+          }
+        } catch(e) {
+          console.log(e);
+        }
+      }
+    });
+
+    let sleepTime = 100;
+
+    await page._client.on('Media.playersCreated', (params) => {
+      for (const player of params.players) {
+        console.log(`Player created ${player}`);
+        sleepTime = 3000;
+      }
+    });
+
     setStatus(`Loading Page: ${this.captureUrl}`);
 
     try {
@@ -99,8 +136,18 @@ class Driver
     }
 
     this.entryUrl = this.captureUrl;
+
+    // TODO: move to behavior system
+    if (this.captureUrl.match(/https?:\/\/twitter.com/)) {
+      await page.evaluate(() => document.querySelector("div[aria-label='Play this video']").click());
+    }
   
-    await utils.sleep(100);
+    await utils.sleep(sleepTime);
+
+    const players = Object.values(this.players);
+    if (players.length) {
+      await Promise.race([Promise.all(players), utils.sleep(120000)]);
+    }
   }
 
   async exitBrowser() {

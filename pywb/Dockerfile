@@ -2,7 +2,7 @@ FROM webrecorder/pywb:develop
 
 WORKDIR /app
 
-RUN pip install -U "git+https://github.com/webrecorder/wacz-format.git@develop#egg=wacz&subdirectory=py-wacz&foo"
+RUN pip install -U "git+https://github.com/webrecorder/wacz-format.git@develop#egg=wacz&subdirectory=py-wacz"
 
 RUN pip install -U warcio
 
