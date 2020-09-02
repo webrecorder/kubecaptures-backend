@@ -17,6 +17,9 @@ metadata:
 
 spec:
   backoffLimit: 2
+{% if job_max_duration %}
+  activeDeadlineSeconds: {{ job_max_duration }}
+{% endif %}
   ttlSecondsAfterFinished: 120
   template:
     spec:

@@ -20,6 +20,12 @@ storage:
 # duration of storage artifacts left in block storage
 job_cleanup_interval: "240"
 
+# max duration of each job, if not finished by this time, will be stopped and considered failed
+job_max_duration: "10"
+
+# num replicas for api backend
+num_backend_replicas: "2"
+
 name: dev
 
 # optional: if 'host' is set, a publicly accessible Ingress controller is created with an SSL cert (using letsencrypt)

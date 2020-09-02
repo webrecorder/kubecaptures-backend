@@ -38,6 +38,7 @@ data:
   STORAGE_PREFIX: {{ .Values.storage.storage_prefix }}
   PROFILE_URL: "{{ .Values.profile_url | default "" }}"
   JOB_CLEANUP_INTERVAL: "{{ .Values.job_cleanup_interval }}"
+  JOB_MAX_DURATION: "{{ .Values.job_max_duration }}"
 
 ---
 apiVersion: batch/v1beta1
@@ -82,7 +83,7 @@ spec:
   selector:
     matchLabels:
       app: perma-fact-{{ .Values.name }}
-  replicas: 2
+  replicas: {{ .Values.num_backend_replicas | default 2 }}
   template:
     metadata:
       labels:

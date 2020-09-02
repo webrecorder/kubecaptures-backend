@@ -52,6 +52,8 @@ headless = not profile_url
 access_prefix = os.environ.get("ACCESS_PREFIX")
 storage_prefix = os.environ.get("STORAGE_PREFIX")
 
+job_max_duration = int(os.environ.get("JOB_MAX_DURATION") or 0) * 60
+
 storage = StorageManager()
 
 
@@ -164,6 +166,7 @@ async def start_job(capture: CaptureRequest):
                 "storage_url": storage_url,
                 "profile_url": profile_url,
                 "headless": headless,
+                "job_max_duration": job_max_duration
             }
         )
         job = yaml.safe_load(data)
