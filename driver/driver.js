@@ -7,10 +7,11 @@ const fetch = require("node-fetch");
 
 const puppeteer = require("puppeteer-core");
 
-const OUTPUT_FILE = "/tmp/out/archive.wacz";
-
 const utils = require("./utils");
 const setStatus = utils.setStatus;
+
+const OUTPUT_FILE = "/tmp/out/archive.wacz";
+const PAGE_TIMEOUT = 120000;
 
 
 // ================================================================================================
@@ -34,13 +35,19 @@ class Driver
   }
 
   async run() {
-    if (!await this.initBrowser()) {
-      return;
+    try {
+      if (!await this.initBrowser()) {
+        return;
+      }
+
+      await this.runCapture(this.page);
+
+      await this.finish();
+    } catch (e) {
+      console.log("Capture Failed");
+      console.warn(e);
+      process.exit(1);
     }
-
-    await this.runCapture(this.page);
-
-    await this.finish();
   }
 
   async initBrowser() {
@@ -106,7 +113,7 @@ class Driver
             this.playerDone[player]();
           }
 
-          if (value.event === "kPlay") {
+          if (value.event === "kPlay" && !this.players[player]) {
             this.players[player] = new Promise((resolve, reject) => {
               console.log(`Wait for player ${player}`);
               this.playerDone[player] = resolve;
@@ -130,23 +137,36 @@ class Driver
     setStatus(`Loading Page: ${this.captureUrl}`);
 
     try {
-      await page.goto(this.captureUrl, {"waitUntil": "networkidle0", "timeout": 60000});
+      await page.goto(this.captureUrl, {"waitUntil": "networkidle0", "timeout": PAGE_TIMEOUT});
     } catch (e) {
       console.log(e);
     }
+
+    setStatus(`Loaded`);
 
     this.entryUrl = this.captureUrl;
 
     // TODO: move to behavior system
     if (this.captureUrl.match(/https?:\/\/twitter.com/)) {
-      await page.evaluate(() => document.querySelector("div[aria-label='Play this video']").click());
+      try {
+        //await page.evaluate(() => document.querySelector("div[aria-label='Play this video']").click());
+        await page.evaluate(() => document.evaluate("//div[starts-with(@aria-label, 'Play')]",
+            document.body, null,
+            XPathResult.FIRST_ORDERED_NODE_TYPE).singleNodeValue.click());
+
+        sleepTime = 3000;
+        this.players["_idletimer"] = utils.waitForNet(page, 5000);
+
+      } catch (e) {
+        console.log("No playable twitter video found");
+      }
     }
   
     await utils.sleep(sleepTime);
 
     const players = Object.values(this.players);
     if (players.length) {
-      await Promise.race([Promise.all(players), utils.sleep(120000)]);
+      await Promise.race([Promise.all(players), utils.sleep(PAGE_TIMEOUT)]);
     }
   }
 
