@@ -1,18 +1,14 @@
-#FROM oldwebtoday/shepherd:1.2.0-dev
-FROM python:3.8
+FROM webrecorder/browserkube
 
 WORKDIR /app/
 
-ADD requirements.txt /app/
+ADD capture.py /app/
 
-RUN pip install -r requirements.txt
+ENV APP_MODULE capture
 
-ADD main.py /app/
-ADD cleanup.py /app/
-CMD uvicorn main:app --port 80 --host 0.0.0.0
+CMD ./run.sh
 
-#COPY app.py driver/embeds.json /app/
 COPY templates/ /app/templates/
-COPY static/ /app/static/
-COPY replay/ /app/replay/
+#COPY static/ /app/static/
+#COPY replay/ /app/replay/
 

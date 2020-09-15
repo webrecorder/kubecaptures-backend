@@ -1,10 +1,11 @@
 version: '3.3'
 
 services:
-    main:
-        image: ikreymer/permaproof-main
+    permafact-backend:
+        image: ikreymer/permaproof-main:dev
         build: ./
 
-        ports:
-          - 7030:7030
+    driver:
+        image: ikreymer/permaproof-driver:dev
+        build: ./driver/
 
