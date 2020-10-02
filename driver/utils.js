@@ -1,3 +1,6 @@
+const crypto = require('crypto');
+const querystring = require('querystring');
+
 let status = "";
 
 
@@ -93,6 +96,28 @@ async function waitForPredicate(ms, predicate) {
   }
 }
 
+// signatures
+
+function signData(data, signingKey, signingKeyAlgorithm){
+  return crypto
+    .createHmac(signingKeyAlgorithm, signingKey)
+    .update(querystring.stringify(data))
+    .digest('hex')
+}
+
+function isValidSignature(signature, data, signingKey, signingKeyAlgorithm){
+  const postedSignature = Buffer.from(signature, 'utf-8');
+  const generatedSignature = Buffer.from(
+    signData(data, signingKey, signingKeyAlgorithm),
+    'utf-8'
+  );
+  try {
+    return crypto.timingSafeEqual(postedSignature, generatedSignature);
+  } catch (e) {
+    return false;
+  }
+}
+
 module.exports = {
   clickShadowRoot,
   sleep,
@@ -101,5 +126,7 @@ module.exports = {
   waitForFrame,
   waitForPredicate,
   setStatus,
-  getStatus
+  getStatus,
+  signData,
+  isValidSignature
 };
