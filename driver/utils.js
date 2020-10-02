@@ -51,10 +51,10 @@ async function waitForNet(page, idle) {
   function restartTimer() {
     if (tid) { clearTimeout(tid); }
     //console.log(networkManager._requestIdToRequest.size);
-    tid = setTimeout(() => { 
+    tid = setTimeout(() => {
       resolve();
       clearTimeout(tid);
-    }, idle); 
+    }, idle);
   }
 
   restartTimer();
@@ -66,7 +66,7 @@ async function waitForClick(frame, selector, timeout = 30000) {
   await frame.waitForSelector(selector, {timeout: timeout});
   await frame.click(selector);
 }
-  
+
 
 async function waitForFrame(page, inx, timeout = 3000) {
   if (!await waitForPredicate(timeout, () => { return page.frames().length > inx; })) {
