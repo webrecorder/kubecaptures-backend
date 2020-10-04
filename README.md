@@ -1,6 +1,7 @@
-## permafact-server
+## KubeCaptures Backend
 
-This repository contains an experimental, Kubernetes-native browser capture implementation.
+This repository contains an extension of the [Browserkube](https://github.com/webrecorder/browserkube) system,
+designed for an on-demand, single-url capture service. This project is created in collaboration with [Perma.cc](https://perma.cc) team at [Harvard LIL](https://github.com/harvard-lil)
 
 Requirements:
 - A kubernetes cluster, accessible via `kubectl`
@@ -12,7 +13,10 @@ Requirements:
 
 ## Setup
 
-The system uses Helm to deploy to a Kubernetes cluster. All of the cluster config settings are set it config.yaml
+The system uses Helm to deploy to a Kubernetes cluster, customizing the Kubernetes chart found in [Browserkube](https://github.com/webrecorder/browserkube).
+
+All of the cluster config settings are set it config.yaml
+
 
 1. Copy `config.sample.yaml` -> `config.yaml`.
 
@@ -20,7 +24,7 @@ The system uses Helm to deploy to a Kubernetes cluster. All of the cluster confi
 
 3. Before first run, create the `browsers` namespace by running `kubectl create namespace browsers`.
 
-3. To start, run `helm install perma permafact -f ./config.yaml` to the currently configured Kubernetes cluster.
+3. To start, run `helm install kubecaptures permafact -f ./config.yaml` to the currently configured Kubernetes cluster.
 
 4. To stop the cluster, run `helm uninstall perma permafact`.
 
