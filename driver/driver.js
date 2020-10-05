@@ -11,7 +11,8 @@ const utils = require("./utils");
 const setStatus = utils.setStatus;
 
 const OUTPUT_FILE = "/tmp/out/archive.wacz";
-const PAGE_TIMEOUT = 120000;
+const PAGE_TIMEOUT = 30000;
+const VIDEO_TIMEOUT = 300000;
 
 
 // ================================================================================================
@@ -137,6 +138,7 @@ class Driver
     setStatus(`Loading Page: ${this.captureUrl}`);
 
     try {
+      //await page.goto(this.captureUrl, {"waitUntil": "networkidle0", "timeout": PAGE_TIMEOUT});
       await page.goto(this.captureUrl, {"waitUntil": "networkidle0", "timeout": PAGE_TIMEOUT});
     } catch (e) {
       console.log(e);
@@ -158,7 +160,7 @@ class Driver
         this.players["_idletimer"] = utils.waitForNet(page, 5000);
 
       } catch (e) {
-        console.log("No playable twitter video found");
+        console.log("No clickable twitter video found");
       }
     }
   
@@ -166,7 +168,39 @@ class Driver
 
     const players = Object.values(this.players);
     if (players.length) {
-      await Promise.race([Promise.all(players), utils.sleep(PAGE_TIMEOUT)]);
+      await Promise.race([Promise.all(players), utils.sleep(VIDEO_TIMEOUT)]);
+    }
+
+    //TODO: configurable?
+    const scroll = true;
+
+    if (scroll) {
+      setStatus(`Autoscrolling...`);
+      try {
+        await Promise.race([page.evaluate(this.autoScroll), utils.sleep(PAGE_TIMEOUT)]);
+      } catch (e) {
+        console.warn("Behavior Failed", e);
+      }
+      setStatus(`Autoscroll Done`);
+    }
+  }
+
+  async autoScroll() {
+    const canScrollMore = () =>
+      self.scrollY + self.innerHeight <
+      Math.max(
+        self.document.body.scrollHeight,
+        self.document.body.offsetHeight,
+        self.document.documentElement.clientHeight,
+        self.document.documentElement.scrollHeight,
+        self.document.documentElement.offsetHeight
+      );
+
+    const scrollOpts = { top: 250, left: 0, behavior: 'auto' };
+
+    while (canScrollMore()) {
+      self.scrollBy(scrollOpts);
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
   }
 
