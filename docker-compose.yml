@@ -2,10 +2,9 @@ version: '3.3'
 
 services:
     permafact-backend:
-        image: ikreymer/permaproof-main:dev
-        build: ./
+        image: "${MAIN_IMAGE:-ikreymer/permaproof-main}:${MAIN_TAG:-dev}"
+        build: ./main/
 
     driver:
-        image: ikreymer/permaproof-driver:dev
+        image: "${DRIVER_IMAGE:-ikreymer/permaproof-driver}:${DRIVER_TAG:-dev}"
         build: ./driver/
-
