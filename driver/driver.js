@@ -288,9 +288,10 @@ class Driver
     }
 
     const s3 = new AWS.S3({
-      endpoint,
-      accessKeyId,
-      secretAccessKey
+      endpoint: endpoint,
+      accessKeyId: accessKeyId,
+      secretAccessKey: secretAccessKey,
+      s3ForcePathStyle: endpoint.hostname.includes("minio"),  // temporarily, until Browserkube is updated to pass the config `force_path_style` to the job
     });
 
     const uu = new URL(this.storageUrl);
