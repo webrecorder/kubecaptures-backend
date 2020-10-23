@@ -57,13 +57,13 @@ class Driver
       setStatus("No URL, exiting...");
       return false;
     }
-  
+
     setStatus("Loading Browser...");
-  
+
     const { address: hostname } = await dns.lookup(this.browserHost);
-  
+
     let browser = null;
-  
+
     if (!process.env.BROWSER_HOST) {
       browser = await puppeteer.launch({headless: false, defaultViewport: null, executablePath: process.env.EXE_PATH,
         args: ["--disable-features=site-per-process"]});
@@ -71,7 +71,7 @@ class Driver
 
     const defaultViewport = this.getDefaultViewport();
     const browserURL = `http://${hostname}:9222`;
-  
+
     while (!browser) {
       try {
         browser = await puppeteer.connect({browserURL, defaultViewport});
@@ -163,7 +163,7 @@ class Driver
         console.log("No clickable twitter video found");
       }
     }
-  
+
     await utils.sleep(sleepTime);
 
     const players = Object.values(this.players);
@@ -209,7 +209,7 @@ class Driver
       console.log("Creating exit file: " + process.env.EXIT_FILE);
       fs.closeSync(fs.openSync(process.env.EXIT_FILE, "w"));
     }
-    
+
     try {
       console.log("Closing Browser...");
       await this.browser.close();
@@ -253,19 +253,19 @@ class Driver
   getDefaultViewport() {
     return null;
   }
-  
+
   async commitWacz(url) {
     const usp = new URLSearchParams();
     usp.set("url", url);
-  
+
     setStatus("Requesting WACZ");
     const resp = await fetch(`${this.proxyOrigin}/api/wacz/capture?${usp.toString()}`);
-  
+
     if (resp.status !== 200) {
       console.log("error", await resp.text());
       return;
     }
-  
+
     try {
       const res = await this.uploadFile();
       console.log(res);
@@ -275,26 +275,27 @@ class Driver
       return 1;
     }
   }
-  
+
   uploadFile() {
     const accessKeyId =  process.env.AWS_ACCESS_KEY_ID;
     const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
-  
+
     // Configure client for use with Spaces
     let endpoint = null;
-  
+
     if (process.env.AWS_ENDPOINT) {
       endpoint = new AWS.Endpoint(process.env.AWS_ENDPOINT);
     }
-  
+
     const s3 = new AWS.S3({
-      endpoint,
-      accessKeyId,
-      secretAccessKey
+      endpoint: endpoint,
+      accessKeyId: accessKeyId,
+      secretAccessKey: secretAccessKey,
+      s3ForcePathStyle: endpoint.hostname.includes("minio"),  // temporarily, until Browserkube is updated to pass the config `force_path_style` to the job
     });
-  
+
     const uu = new URL(this.storageUrl);
-  
+
     var params = {
       Body: fs.createReadStream(OUTPUT_FILE),
       Bucket: uu.hostname,
@@ -306,7 +307,7 @@ class Driver
     }
 
     setStatus("Uploading WACZ: " + OUTPUT_FILE);
-  
+
     return new Promise((resolve, reject) => {
       s3.putObject(params, (err, data) => {
         if (err) {
@@ -321,23 +322,23 @@ class Driver
   async waitFileDone(pendingCheckUrl) {
     while (true) {
       //const oldCurrentSize = this.currentSize;
-  
+
       let res = await fetch(pendingCheckUrl);
       res = await res.json();
 
       console.log(`Pending: ${JSON.stringify(res)}`);
-  
+
       const oldPending = res.count;
       this.pendingSize = res.size;
-  
+
       await utils.sleep(1000);
-  
+
       res = await fetch(pendingCheckUrl);
       res = await res.json();
-  
+
       const newPending = res.count;
       const newPendingSize = res.size;
-  
+
       if (oldPending <= 0 && newPending <= 0 && newPendingSize === this.pendingSize) {
         return true;
       }
