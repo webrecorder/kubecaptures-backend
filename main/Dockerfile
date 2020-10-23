@@ -9,3 +9,6 @@ ENV APP_MODULE capture
 CMD ./run.sh
 
 COPY templates/ /app/templates/
+COPY static/ /app/static/
+COPY replay/ /app/replay/
+

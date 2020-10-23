@@ -2,9 +2,9 @@ version: '3.3'
 
 services:
     permafact-backend:
-        image: "${MAIN_IMAGE:-ikreymer/permaproof-main}:${MAIN_TAG:-dev}"
+        image: "${MAIN_IMAGE:-webrecorder/kubecaptures-main}:${MAIN_TAG:-latest}"
         build: ./main/
 
     driver:
-        image: "${DRIVER_IMAGE:-ikreymer/permaproof-driver}:${DRIVER_TAG:-dev}"
+        image: "${DRIVER_IMAGE:-webrecorder/kubecaptures-driver}:${DRIVER_TAG:-latest}"
         build: ./driver/

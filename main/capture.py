@@ -32,7 +32,7 @@ class CaptureApp(BrowserKube):
     def __init__(self):
         super().__init__()
 
-        #self.app.mount("/replay", StaticFiles(directory="replay"), name="replay")
+        self.app.mount("/replay", StaticFiles(directory="replay"), name="replay")
 
     def init_routes(self):
         # pylint: disable=unused-variable

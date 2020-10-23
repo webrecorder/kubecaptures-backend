@@ -26,8 +26,8 @@ You do not need a copy of this repository to run the application: all the necess
 Follow the standard installation instructions for [Browserkube](https://github.com/webrecorder/browserkube/blob/41ccddb0f634e3e112a3480bc06277fe0c491a09/README.md), adding two additional keys to your `config.yml`:
 
 ```
-main_image: 'ikreymer/permaproof-main:dev'
-driver_image: 'ikreymer/permaproof-driver:dev'
+main_image: 'webrecorder/kubecaptures-main:dev'
+driver_image: 'webrecorder/kubecaptures-driver:dev'
 ```
 
 
@@ -71,8 +71,8 @@ This is one way to get up-and-running with a local installation.
     - (wrong!) set `access_prefix` to `http://localhost:9000/kubecaptures/`
     - set `force_path_style` to `True`
 18. Configure the Helm chart to use our custom KubeCaptures images instead of the Browserkube defaults:
-    - set `main_image` to `ikreymer/permaproof-main:dev`
-    - set `driver_image` to  `ikreymer/permaproof-driver:dev`
+    - set `main_image` to `webrecorder/kubecaptures-main:dev`
+    - set `driver_image` to  `webrecorder/kubecaptures-driver:dev`
 19. Create the `browsers` namespace by running `kubectl create namespace browsers`.
 
 ### Launch Browserkube/KubeCaptures
