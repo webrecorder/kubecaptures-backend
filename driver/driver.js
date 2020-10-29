@@ -18,9 +18,12 @@ const VIDEO_TIMEOUT = 300000;
 // ================================================================================================
 class Driver
 {
-  constructor(captureUrl, storageUrl) {
+  constructor(captureUrl, storageUrl, webhookCallbacks) {
     this.captureUrl = captureUrl;
     this.storageUrl = storageUrl;
+    this.webhookCallbacks = webhookCallbacks;
+    this.jobid = process.env.JOBID;
+    this.userid = process.env.USERID;
     this.browserHost = process.env.BROWSER_HOST || "localhost";
     this.proxyHost = process.env.PROXY_HOST;
     this.proxyPort = process.env.PROXY_PORT || 8080;
@@ -232,6 +235,12 @@ class Driver
       res = await this.commitWacz(this.entryUrl || this.captureUrl);
     }
 
+    if (res == 0 && this.webhookCallbacks.length) {
+      console.log("Dispatching Webhooks");
+      let hookResponses = await this.dispatchWebhooks(this.jobid, this.userid, this.captureUrl);
+      console.log(hookResponses);
+    }
+
     try {
       await fetch(`${this.proxyOrigin}/api/exit`);
     } catch (e) {
@@ -348,6 +357,39 @@ class Driver
       }
     }
   }
+
+  async dispatchWebhooks(jobid, userid, captureUrl){
+    return await Promise.allSettled(this.webhookCallbacks.map(async (hook) => {
+      return this.postToCallback(
+        {
+          'jobid': jobid,
+          'userid': userid,
+          'url': captureUrl,
+          'userDataField': hook.userDataField
+        },
+        hook.callbackUrl,
+        hook.signingKey,
+        hook.signingKeyAlgorithm
+      );
+    }));
+  }
+
+  async postToCallback(data, callbackUrl, signingKey, signingKeyAlgorithm){
+    let headers = {
+      "Content-Type": "application/json;charset=utf-8",
+    };
+    if (signingKey && signingKeyAlgorithm) {
+      headers["X-Hook-Signature"] = utils.signData(data, signingKey, signingKeyAlgorithm);
+    }
+    const resp = await fetch(callbackUrl, {
+      "method": "POST",
+      "headers": headers,
+      "body": JSON.stringify(data)
+    });
+    let text = await resp.text();
+    return {"callbackUrl": callbackUrl, "status": resp.status, "text": text.slice(0, 250) + '...'};
+  }
+
 }
 
 module.exports = { Driver };

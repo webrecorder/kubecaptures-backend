@@ -1,11 +1,12 @@
 import html
+import json
 import uuid
 import asyncio
 
 import urllib.parse
 import datetime
 
-from typing import List
+from typing import List, Dict
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse
@@ -24,6 +25,7 @@ class CaptureRequest(BaseModel):
     userid: str = "user"
     tag: str = ""
     embeds: bool = False
+    webhooks: List[Dict[str, str]] = []
 
 
 # ============================================================================
@@ -85,8 +87,13 @@ class CaptureApp(BrowserKube):
                 "accessUrl": access_url,
             }
 
-            driver_env = {"STORAGE_URL": storage_url}
-
+            driver_env = {
+                "STORAGE_URL": storage_url,
+                "USERID": capture.userid,
+                "JOBID": jobid
+            }
+            if capture.webhooks:
+                driver_env["WEBHOOK_DATA"] = json.dumps(capture.webhooks)
             if not self.job_env.get("headless"):
                 driver_env["DISABLE_CACHE"] = "1"
 
