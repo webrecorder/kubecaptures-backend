@@ -1,22 +1,19 @@
-import html
-import uuid
 import asyncio
-import re
-
 from datetime import datetime, timezone
-
-from typing import Optional, List, Dict, Literal
+import html
+import re
+import uuid
 
 from fastapi import Request, Query
 from fastapi.responses import HTMLResponse
 from fastapi.openapi.utils import get_openapi
 from fastapi.staticfiles import StaticFiles
-
-# pylint: disable=no-name-in-module
 from pydantic import BaseModel, Field, HttpUrl, AnyHttpUrl, UUID4, validator
+from typing import Optional, List, Dict, Literal
 
 from browserkube import BrowserKube
 
+# pylint: disable=no-name-in-module
 
 # ============================================================================
 
