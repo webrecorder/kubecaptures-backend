@@ -5,8 +5,8 @@ import re
 import uuid
 
 from fastapi import Request, Query
-from fastapi.responses import HTMLResponse
 from fastapi.openapi.utils import get_openapi
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, HttpUrl, AnyHttpUrl, UUID4, validator
 from typing import Optional, List, Dict, Literal
@@ -218,6 +218,10 @@ class CaptureJobListResponse(BaseModel):
         }
 
 
+class MessageResponse(BaseModel):
+    message: str
+
+
 # ============================================================================
 class CaptureApp(BrowserKube):
     # pylint: disable=too-many-instance-attributes
@@ -253,8 +257,22 @@ class CaptureApp(BrowserKube):
             )):
             return await self.list_jobs(userid)
 
-        @self.app.delete("/capture/{jobid}")
-        async def delete_capture_job(jobid: str, userid: str = ""):
+        @self.app.delete("/capture/{jobid}",
+            responses={
+                204: {"description": "Capture Job Deleted."},
+                403: {"model": MessageResponse, "description": "Permission Denied."},
+                404: {"model": MessageResponse, "description": "Capture Job Not Found." }
+            },
+            status_code=204,
+            tags=["Capture Jobs"]
+        )
+        async def delete_capture_job(jobid: UUID4, userid: Optional[str] = Query(
+                "",
+                title="Username/User ID",
+                description="Only delete the job if it is labeled with this username/user id; otherwise, permission is denied. (Omit the `userid` param to delete with admin privileges.)",
+                regex=K8S_LABEL_PATTERN,
+                example="2139"
+            )):
             return await self.delete_job(jobid, userid)
 
     async def start_job(self, capture_request: CaptureRequest):
@@ -374,19 +392,23 @@ class CaptureApp(BrowserKube):
         return CaptureJobListResponse(jobs=jobs)
 
     async def delete_job(self, jobid: str, userid: str = ""):
+        """
+        Delete a single k8s capture job.
+        """
+        jobid = str(jobid)
         api_response = await self.k8s.get_job(self.get_job_name(jobid))
-
-        if userid and api_response.metadata.labels.get("userid") != userid:
-            return {"deleted": False}
-
         if not api_response:
-            return {"deleted": False}
+            return JSONResponse(status_code=404, content={"message": "Capture job not found."})
+        if userid and api_response.metadata.labels.get("userid") != userid:
+            return JSONResponse(status_code=403, content={"message": f"Capture job {jobid} does not belong to userid {userid}."})
 
         storage_url = api_response.metadata.annotations.get("storageUrl")
         if storage_url:
             await self.storage.delete_object(storage_url)
 
-        await super().remove_browser_job(jobid)
+        upstream_response = await super().remove_browser_job(jobid)
+        assert upstream_response == {"deleted": True}
+        return Response(status_code=204)
 
 
 # ============================================================================
