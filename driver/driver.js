@@ -18,9 +18,10 @@ const VIDEO_TIMEOUT = 300000;
 // ================================================================================================
 class Driver
 {
-  constructor(captureUrl, storageUrl, webhookCallbacks) {
+  constructor(captureUrl, storageUrl, accessUrl, webhookCallbacks) {
     this.captureUrl = captureUrl;
     this.storageUrl = storageUrl;
+    this.accessUrl = accessUrl;
     this.webhookCallbacks = webhookCallbacks;
     this.jobid = process.env.JOBID;
     this.userid = process.env.USERID;
@@ -237,7 +238,7 @@ class Driver
 
     if (res == 0 && this.webhookCallbacks.length) {
       console.log("Dispatching Webhooks");
-      let hookResponses = await this.dispatchWebhooks(this.jobid, this.userid, this.captureUrl);
+      let hookResponses = await this.dispatchWebhooks(this.jobid, this.userid, this.captureUrl, this.accessUrl);
       console.log(hookResponses);
     }
 
@@ -358,13 +359,14 @@ class Driver
     }
   }
 
-  async dispatchWebhooks(jobid, userid, captureUrl){
+  async dispatchWebhooks(jobid, userid, captureUrl, accessUrl){
     return await Promise.allSettled(this.webhookCallbacks.map(async (hook) => {
       return this.postToCallback(
         {
           'jobid': jobid,
           'userid': userid,
           'url': captureUrl,
+          'accessUrl': accessUrl,
           'userDataField': hook.userDataField
         },
         hook.callbackUrl,

@@ -63,8 +63,9 @@ class WebhookList(BaseModel):
     A series of URLs to notify when the capture job is complete.
 
     Each specified `callbackUrl` will receive an HTTP POST including the `jobid`,
-    captured `url`, and `userid` of the capture job (if any). If a value for
-    `userDataField` was supplied, it will be included, verbatim, in the response.
+    captured `url`, `accessUrl` from which the archive can be downloaded, and
+    `userid` of the capture job (if any). If a value for `userDataField` was
+    supplied, it will be included, verbatim, in the response.
 
     If a `signingKey` and `signingKeyAlgorithm` are provided, the response data
     will be [signed](https://github.com/webrecorder/kubecaptures-backend/blob/main/driver/utils.js#L99)
@@ -335,6 +336,7 @@ class CaptureApp(BrowserKube):
             }
             driver_env = {
                 "STORAGE_URL": storage_url,
+                "ACCESS_URL": access_url,
                 "USERID": capture_request.userid,
                 "JOBID": jobid
             }
