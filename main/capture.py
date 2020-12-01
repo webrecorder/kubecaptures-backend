@@ -228,7 +228,6 @@ class CaptureApp(BrowserKube):
     # pylint: disable=too-many-instance-attributes
     def __init__(self):
         super().__init__()
-
         self.app.mount("/replay", StaticFiles(directory="replay"), name="replay")
 
     def init_routes(self):
