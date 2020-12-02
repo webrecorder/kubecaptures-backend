@@ -1,4 +1,5 @@
-FROM webrecorder/browserkube
+ARG BASE_IMAGE
+FROM $BASE_IMAGE
 
 ENV APP_MODULE capture
 
