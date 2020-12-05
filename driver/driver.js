@@ -279,6 +279,7 @@ class Driver
   uploadFile() {
     const accessKeyId =  process.env.AWS_ACCESS_KEY_ID;
     const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+    const s3ForcePathStyle = Boolean(process.env.S3_FORCE_PATH_STYLE);
 
     // Configure client for use with Spaces
     let endpoint = null;
@@ -291,7 +292,7 @@ class Driver
       endpoint: endpoint,
       accessKeyId: accessKeyId,
       secretAccessKey: secretAccessKey,
-      s3ForcePathStyle: endpoint.hostname.includes("minio"),  // temporarily, until Browserkube is updated to pass the config `force_path_style` to the job
+      s3ForcePathStyle: s3ForcePathStyle,
     });
 
     const uu = new URL(this.storageUrl);
