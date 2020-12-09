@@ -1,7 +1,7 @@
 version: '3.3'
 
 services:
-    permafact-backend:
+    main:
         image: "${MAIN_IMAGE:-webrecorder/kubecaptures-main}:${MAIN_TAG:-latest}"
         build:
           context: ./main/
