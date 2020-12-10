@@ -1,11 +1,19 @@
 version: '3.3'
 
 services:
+    frontend:
+        image: "${FRONTEND_IMAGE:-webrecorder/kubecaptures-frontend}:${FRONTEND_TAG:-latest}"
+        build:
+          context: ./frontend/
+          args:
+            BASE_IMAGE: "${FRONTEND_IMAGE_BASE:-node:15.0}"
+
     main:
         image: "${MAIN_IMAGE:-webrecorder/kubecaptures-main}:${MAIN_TAG:-latest}"
         build:
           context: ./main/
           args:
+            FRONTEND_IMAGE: "${FRONTEND_IMAGE:-webrecorder/kubecaptures-frontend}:${FRONTEND_TAG:-latest}"
             BASE_IMAGE: "${MAIN_IMAGE_BASE:-webrecorder/browserkube-main}"
 
     driver:
