@@ -104,7 +104,7 @@ This is one way to get up-and-running with a local installation.
     main_pull_policy: "IfNotPresent"
     driver_pull_policy: "IfNotPresent"
     ```
-20. Make changes to this repository, adjusting the code for the main or driver images as desired.
+20. Make changes to this repository, adjusting the code for the `main`, `driver`, and `frontend` images as desired.
 21. Run `eval $(minikube -p minikube docker-env)` so that, in the current terminal, `docker` and `docker-compose` commands target the minikube Docker daemon, rather than the Docker Desktop daemon. (To observe the results of this command, run `docker images` before and afterwards, and compare the results.)
 22. Run `docker-compose build` to build and tag images using your new code.
 23. Reinstall Browserkube/KubeCaptures on the cluster, using those custom images:
@@ -114,7 +114,7 @@ This is one way to get up-and-running with a local installation.
     - Rerun `kubectl port-forward service/minio 9000` and `kubectl port-forward service/browserkube 8080:80`
     - Test
 24. Continue making changes and building new images.
-    - If you make changes to the `main` image or alter `config.yml`, you will need to repeat the above re-installation step each time.
+    - If you make changes to the `main` or `frontend` image or alter `config.yml`, you will need to repeat the above re-installation step each time.
     - If you are only making changes to the `driver` image, you will NOT need to reinstall after building: each newly launched capture job will use the most recent version of the image with the configured name and tag.
 
 ### Turn everything off
