@@ -60,12 +60,12 @@ This is one way to get up-and-running with a local installation.
 
 9. Configure the Helm chart to use our custom KubeCaptures images instead of the Browserkube defaults:
     - touch `config.yml`
-    - add `main_image: webrecorder/kubecaptures-main:dev`
-    - add `driver_image: webrecorder/kubecaptures-driver:dev`
+    - add `main_image: 'webrecorder/kubecaptures-main:dev'`
+    - add `driver_image: 'webrecorder/kubecaptures-driver:dev'`
 
 10. Run `helm install bk browserkube/browserkube -f ./config.yaml` to install a release (here, arbitrarily named "bk") of the chart on the currently configured Kubernetes cluster. If successful, `helm list` will list the `bk` release, and `kubectl get services` will list the `browserkube` service, and you should be able to see the service and its pods in the Kubernetes dashboard. `kubectl get namespaces` should list the (newly-created) namespace specified by the `browser_namespace` config value.
 
-11. Expose the Minio service to your local machine on port 9000, and in another terminal window, expose the Browserkube service on port 8080:
+11. Expose the Minio service to your local machine on port 9000, and in another terminal window, expose the Browserkube/KubeCaptures service on port 8080:
     ```
     kubectl port-forward service/minio 9000
     kubectl port-forward service/browserkube 8080:80
@@ -91,35 +91,36 @@ This is one way to get up-and-running with a local installation.
 
 ### Change the code
 
-18. Create a `.env` file in this directory, and use it to provide custom names for the docker images, being sure to use your own Docker username. E.g.
+18. Create a `.env` file in this directory, and use it to provide custom tags (and/or names) for the docker images. E.g.
     ```
-    MAIN_IMAGE=rcremona/kubecaptures-backend-main
-    MAIN_TAG=dev
-    DRIVER_IMAGE=rcremona/kubecaptures-backend-driver
-    DRIVER_TAG=dev
+    MAIN_TAG=local
+    DRIVER_TAG=local
+  ```
+19. Adjust `config.yml` to use your custom image tags/names, and ensure Kubernetes will use the locally-built images:
     ```
-19. Make changes to this repository, adjusting the code for the main or driver images as desired.
-20. Run `docker-compose build` to build and tag images using your new code.
-21. Push those images to Dockerhub:
+    main_image: 'webrecorder/kubecaptures-main:local'
+    driver_image: 'webrecorder/kubecaptures-driver:local'
+
+    main_pull_policy: "IfNotPresent"
+    driver_pull_policy: "IfNotPresent"
     ```
-    docker login
-    docker push rcremona/kubecaptures-backend-main:dev
-    docker push rcremona/kubecaptures-backend-driver:dev
-    ```
-22. Adjust `config.yml` to use your custom images.
+20. Make changes to this repository, adjusting the code for the main or driver images as desired.
+21. Run `eval $(minikube -p minikube docker-env)` so that, in the current terminal, `docker` and `docker-compose` commands target the minikube Docker daemon, rather than the Docker Desktop daemon. (To observe the results of this command, run `docker images` before and afterwards, and compare the results.)
+22. Run `docker-compose build` to build and tag images using your new code.
 23. Reinstall Browserkube/KubeCaptures on the cluster, using those custom images:
-    - `ctrl+c` in the terminal windows that are proxying Minio and Browserkube
+    - `ctrl+c` in the terminal windows that are proxying Minio and Browserkube/KubeCaptures
     - `helm uninstall bk` and wait a few seconds
     - Rerun `helm install bk browserkube/browserkube -f ./config.yaml`
     - Rerun `kubectl port-forward service/minio 9000` and `kubectl port-forward service/browserkube 8080:80`
     - Test
-24. Continue making changes, building new images, and pushing them to Dockerhub.
+24. Continue making changes and building new images.
     - If you make changes to the `main` image or alter `config.yml`, you will need to repeat the above re-installation step each time.
-    - If you are only making changes to the `driver` image, you will NOT need to reinstall after pushing to Dockerhub: each newly launched capture job will use the most recent version of the image with the configured name and tag.
+    - If you are only making changes to the `driver` image, you will NOT need to reinstall after building: each newly launched capture job will use the most recent version of the image with the configured name and tag.
 
 ### Turn everything off
 
-25. `ctrl+c` in the three terminal windows proxying Browserkube/KubeCaptures, Minio and the Kubernetes dashboard.
+25. `ctrl+c` in the three terminal windows proxying Minio, Browserkube/KubeCaptures, and the Kubernetes dashboard.
 26. `helm uninstall bk`
 27. `minikube stop` (or `minikube delete`, to truly start fresh next time)
-28. Quit Docker Desktop
+28. Close any terminal windows in which you ran `eval $(minikube -p minikube docker-env)`.
+29. Quit Docker Desktop
