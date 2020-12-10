@@ -6,11 +6,11 @@ services:
         build:
           context: ./main/
           args:
-            BASE_IMAGE: "${MAIN_BASE_IMAGE:-webrecorder/browserkube-main}"
+            BASE_IMAGE: "${MAIN_IMAGE_BASE:-webrecorder/browserkube-main}"
 
     driver:
         image: "${DRIVER_IMAGE:-webrecorder/kubecaptures-driver}:${DRIVER_TAG:-latest}"
         build:
           context: ./driver/
           args:
-            BASE_IMAGE: "${DRIVER_BASE_IMAGE:-node:12.14}"
+            BASE_IMAGE: "${DRIVER_IMAGE_BASE:-node:12.14}"
