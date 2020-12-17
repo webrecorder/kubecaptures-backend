@@ -7,10 +7,15 @@
     "aws-sdk": "^2.734.0",
     "express": "^4.17.1",
     "fetch": "^1.1.0",
+    "he": "^1.2.0",
     "node-fetch": "^2.6.1",
     "puppeteer-core": "^2.0.0"
   },
   "devDependencies": {
+    "ava": "^3.13.0",
     "eslint": "^7.7.0"
+  },
+  "scripts": {
+    "test": "ava"
   }
 }

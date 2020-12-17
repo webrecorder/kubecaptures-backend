@@ -124,7 +124,7 @@ This is one way to get up-and-running with a local installation.
 32. Adjust `config.yml` to use your custom images.
 33. Reinstall Browserkube/KubeCaptures on the cluster, using those custom images:
     - `ctrl+c` in the terminal window in which you ran `minikube service --url browserkube`
-    - `heml uninstall bk`
+    - `helm uninstall bk`
     - Rerun `helm install bk browserkube/browserkube -f ./config.yaml`
     - Rerun `minikube service --url browserkube`
     - Test

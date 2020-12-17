@@ -3,8 +3,14 @@ version: '3.3'
 services:
     permafact-backend:
         image: "${MAIN_IMAGE:-webrecorder/kubecaptures-main}:${MAIN_TAG:-latest}"
-        build: ./main/
+        build:
+          context: ./main/
+          args:
+            BASE_IMAGE: "${MAIN_BASE_IMAGE:-webrecorder/browserkube}"
 
     driver:
         image: "${DRIVER_IMAGE:-webrecorder/kubecaptures-driver}:${DRIVER_TAG:-latest}"
-        build: ./driver/
+        build:
+          context: ./driver/
+          args:
+            BASE_IMAGE: "${DRIVER_BASE_IMAGE:-node:12.14}"
