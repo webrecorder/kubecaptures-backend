@@ -1,16 +1,24 @@
 version: '3.3'
 
 services:
-    permafact-backend:
+    frontend:
+        image: "${FRONTEND_IMAGE:-webrecorder/kubecaptures-frontend}:${FRONTEND_TAG:-latest}"
+        build:
+          context: ./frontend/
+          args:
+            BASE_IMAGE: "${FRONTEND_IMAGE_BASE:-node:15.0}"
+
+    main:
         image: "${MAIN_IMAGE:-webrecorder/kubecaptures-main}:${MAIN_TAG:-latest}"
         build:
           context: ./main/
           args:
-            BASE_IMAGE: "${MAIN_BASE_IMAGE:-webrecorder/browserkube}"
+            FRONTEND_IMAGE: "${FRONTEND_IMAGE:-webrecorder/kubecaptures-frontend}:${FRONTEND_TAG:-latest}"
+            BASE_IMAGE: "${MAIN_IMAGE_BASE:-webrecorder/browserkube-main}"
 
     driver:
         image: "${DRIVER_IMAGE:-webrecorder/kubecaptures-driver}:${DRIVER_TAG:-latest}"
         build:
           context: ./driver/
           args:
-            BASE_IMAGE: "${DRIVER_BASE_IMAGE:-node:12.14}"
+            BASE_IMAGE: "${DRIVER_IMAGE_BASE:-node:12.14}"

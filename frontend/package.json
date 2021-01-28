@@ -1,0 +1,31 @@
+{
+  "name": "embeds-ui",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^5.14.0",
+    "bulma": "^0.9.0",
+    "date-fns": "^2.16.1",
+    "lit-element": "^2.4.0",
+    "pretty-bytes": "^5.3.0"
+  },
+  "devDependencies": {
+    "css-loader": "^4.2.1",
+    "mini-css-extract-plugin": "^0.10.0",
+    "node-sass": "^4.14.1",
+    "sass-loader": "^9.0.3",
+    "style-loader": "^1.2.1",
+    "svg-inline-loader": "^0.8.2",
+    "to-string-loader": "^1.1.6",
+    "webpack": "^4.44.1",
+    "webpack-cli": "^3.3.10",
+    "webpack-dev-server": "^3.9.0"
+  },
+  "scripts": {
+    "build": "webpack --mode production",
+    "build-dev": "webpack --mode development",
+    "start-dev": "webpack-dev-server --mode development --open",
+    "start-watch": "NODE_ENV=development webpack --mode=development --watch"
+  }
+}
