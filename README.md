@@ -95,7 +95,7 @@ This is one way to get up-and-running with a local installation.
     ```
     MAIN_TAG=local
     DRIVER_TAG=local
-  ```
+    ```
 19. Adjust `config.yml` to use your custom image tags/names, and ensure Kubernetes will use the locally-built images:
     ```
     main_image: 'webrecorder/kubecaptures-main:local'
