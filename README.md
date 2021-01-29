@@ -29,7 +29,7 @@ You do not need a copy of this repository to run the application: all the necess
 
 ## Basic Installation
 
-Follow the standard installation instructions for [Browserkube](https://github.com/webrecorder/browserkube/blob/d0a0cdda254b980a9b206996599d200ebc17abcf/README.md#setup), and add two additional keys to your `config.yml`:
+Follow the standard installation instructions for [Browserkube](https://github.com/webrecorder/browserkube/blob/d0a0cdda254b980a9b206996599d200ebc17abcf/README.md#setup), and add two additional keys to your `config.yaml`:
 
 ```
 main_image: 'webrecorder/kubecaptures-main:dev'
@@ -59,7 +59,7 @@ This is one way to get up-and-running with a local installation.
 ### Configure and Launch Browserkube/KubeCaptures
 
 9. Configure the Helm chart to use our custom KubeCaptures images instead of the Browserkube defaults:
-    - touch `config.yml`
+    - touch `config.yaml`
     - add `main_image: 'webrecorder/kubecaptures-main:dev'`
     - add `driver_image: 'webrecorder/kubecaptures-driver:dev'`
 
@@ -96,7 +96,7 @@ This is one way to get up-and-running with a local installation.
     MAIN_TAG=local
     DRIVER_TAG=local
     ```
-19. Adjust `config.yml` to use your custom image tags/names, and ensure Kubernetes will use the locally-built images:
+19. Adjust `config.yaml` to use your custom image tags/names, and ensure Kubernetes will use the locally-built images:
     ```
     main_image: 'webrecorder/kubecaptures-main:local'
     driver_image: 'webrecorder/kubecaptures-driver:local'
@@ -114,7 +114,7 @@ This is one way to get up-and-running with a local installation.
     - Rerun `kubectl port-forward service/minio 9000` and `kubectl port-forward service/browserkube 8080:80`
     - Test
 24. Continue making changes and building new images.
-    - If you make changes to the `main` or `frontend` image or alter `config.yml`, you will need to repeat the above re-installation step each time.
+    - If you make changes to the `main` or `frontend` image or alter `config.yaml`, you will need to repeat the above re-installation step each time.
     - If you are only making changes to the `driver` image, you will NOT need to reinstall after building: each newly launched capture job will use the most recent version of the image with the configured name and tag.
 
 ### Turn everything off
